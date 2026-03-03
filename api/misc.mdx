@@ -1,0 +1,313 @@
+---
+title: 'misc.py'
+description: 'Play-by-play, playtype, and possession data collection'
+---
+
+## Overview
+
+The `misc.py` script collects team-level play-type statistics and synergy sports data. It captures how teams score across different offensive actions (transition, isolation, pick-and-roll, post-ups, etc.) and provides efficiency metrics for each play type.
+
+## Data Source
+
+**API**: NBA.com Stats API  
+**Endpoint**: `synergyplaytypes` with various `PlayType` parameters
+
+## Functions
+
+### get_playtypes()
+
+Retrieves team statistics for all offensive play types.
+
+<ParamField path="years" type="list" required>
+  List of season years to collect (e.g., `[2023, 2024]`)
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Set to `True` for playoff data, `False` for regular season
+</ParamField>
+
+<ParamField path="p_or_t" type="string" default="'t'">
+  Player ('p') or Team ('t') level data
+</ParamField>
+
+<ParamField path="defense" type="boolean" default="False">
+  Set to `True` for defensive play-type data
+</ParamField>
+
+**Play Types Collected**:
+- **Transition** - Fast break opportunities
+- **Isolation** - One-on-one offensive plays
+- **PRBallHandler** - Pick and roll ball handler
+- **PRRollman** - Pick and roll roll man
+- **Postup** - Post-up plays
+- **Spotup** - Spot-up shooting
+- **Handoff** - Hand-off actions
+- **Cut** - Cutting to the basket
+- **OffScreen** - Off-screen actions
+- **OffRebound** - Putbacks from offensive rebounds
+- **Misc** - Miscellaneous play types
+
+**Returns**: DataFrame with play-type statistics
+
+```python
+# From misc.py:56-135
+def get_playtypes(years,ps= False,p_or_t='t',defense= False):
+    field_side = "offensive"
+    if defense == True:
+        field_side= "defensive"
+    if p_or_t =='p':
+        type ='P'
+    else:
+        type='T'
+    stype = "Regular+Season"
+    trail =''
+    if ps == True:
+        stype = "Playoffs"
+        trail='/playoffs'
+    headers = {
+        "Host": "stats.nba.com",
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Referer": "https://stats.nba.com/"
+    }
+    playtypes = ['Transition','PRBallHandler','Spotup','Isolation',
+                 'PRRollman','Postup','Misc','OffRebound','Cut',
+                 'Handoff','OffScreen']
+    # ... API calls for each play type
+```
+
+## Output Files
+
+### teamplay.csv / teamplay_p.csv
+
+Team offensive play-type statistics.
+
+<ResponseField name="TEAM_ID" type="integer" required>
+  NBA team ID
+</ResponseField>
+
+<ResponseField name="TEAM_ABBREVIATION" type="string" required>
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="TEAM_NAME" type="string">
+  Full team name
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="POSS" type="integer">
+  Total possessions for this play type
+</ResponseField>
+
+<ResponseField name="PTS" type="integer">
+  Points scored on this play type
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goal attempts
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-1 scale)
+</ResponseField>
+
+<ResponseField name="FTM" type="integer">
+  Free throws made
+</ResponseField>
+
+<ResponseField name="FTA" type="integer">
+  Free throw attempts
+</ResponseField>
+
+<ResponseField name="FT%" type="float">
+  Free throw percentage (0-1 scale)
+</ResponseField>
+
+<ResponseField name="TO" type="integer">
+  Turnovers on this play type
+</ResponseField>
+
+<ResponseField name="TOV%" type="float">
+  Turnover percentage (0-100%)
+</ResponseField>
+
+<ResponseField name="SF" type="integer">
+  Shooting fouls drawn
+</ResponseField>
+
+<ResponseField name="SF%" type="float">
+  Shooting foul percentage
+</ResponseField>
+
+<ResponseField name="PLUSONE" type="integer">
+  And-one opportunities
+</ResponseField>
+
+<ResponseField name="SCORE%" type="float">
+  Scoring percentage (0-100%)
+</ResponseField>
+
+<ResponseField name="PPP" type="float">
+  Points per possession - key efficiency metric
+</ResponseField>
+
+<ResponseField name="EFG%" type="float">
+  Effective field goal percentage
+</ResponseField>
+
+<ResponseField name="playtype" type="string" required>
+  Type of play: "trans", "iso", "bh", "rollman", "postup", "spotup", "handoff", "cut", "offscreen", "putback", "misc"
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+### teamplayd.csv / teamplayd_p.csv
+
+Team defensive play-type statistics (opponent performance against the defense).
+
+Same schema as `teamplay.csv` but represents offensive plays defended by the team.
+
+## Usage Examples
+
+### Collect Play-Type Data
+
+```python
+from misc import get_playtypes
+
+# Get 2024 team offensive play types
+df = get_playtypes([2024], ps=False, p_or_t='t', defense=False)
+
+# View Warriors' transition offense
+gsw = df[(df['TEAM_ABBREVIATION'] == 'GSW') & (df['playtype'] == 'trans')]
+print(gsw[['POSS', 'PPP', 'FG%', 'SCORE%']])
+```
+
+### Compare Play-Type Efficiency
+
+```python
+import pandas as pd
+
+df = pd.read_csv('teamplay.csv')
+df_2024 = df[df['year'] == 2024]
+
+# Average PPP by play type (league-wide)
+efficiency = df_2024.groupby('playtype').agg({
+    'PPP': 'mean',
+    'POSS': 'sum',
+    'SCORE%': 'mean'
+}).sort_values('PPP', ascending=False)
+
+print("Most efficient play types:")
+print(efficiency)
+# Typically: transition > putback > spot-up > roll man > isolation
+```
+
+### Team Offensive Profile
+
+```python
+import pandas as pd
+
+df = pd.read_csv('teamplay.csv')
+team_data = df[(df['TEAM_ABBREVIATION'] == 'LAL') & (df['year'] == 2024)]
+
+# Calculate play-type distribution
+total_poss = team_data['POSS'].sum()
+team_data['FREQ%'] = (team_data['POSS'] / total_poss) * 100
+
+profile = team_data.sort_values('FREQ%', ascending=False)
+print(profile[['playtype', 'POSS', 'FREQ%', 'PPP', 'FG%']])
+```
+
+### Identify Strengths and Weaknesses
+
+```python
+import pandas as pd
+
+df = pd.read_csv('teamplay.csv')
+df_2024 = df[df['year'] == 2024]
+
+# League average PPP by play type
+league_avg = df_2024.groupby('playtype')['PPP'].mean().to_dict()
+
+# Team performance vs league average
+team = 'BOS'
+team_data = df_2024[df_2024['TEAM_ABBREVIATION'] == team].copy()
+team_data['PPP_vs_Avg'] = team_data.apply(
+    lambda row: row['PPP'] - league_avg[row['playtype']], 
+    axis=1
+)
+
+print(f"{team} play-type efficiency vs league:")
+print(team_data.sort_values('PPP_vs_Avg', ascending=False)[['playtype', 'PPP', 'PPP_vs_Avg']])
+```
+
+### Defensive Play-Type Analysis
+
+```python
+import pandas as pd
+
+defense = pd.read_csv('teamplayd.csv')
+def_2024 = defense[defense['year'] == 2024]
+
+# Teams that defend transition best (lowest opponent PPP)
+trans_defense = def_2024[
+    def_2024['playtype'] == 'trans'
+].sort_values('PPP')
+
+print("Best transition defenses (lowest PPP allowed):")
+print(trans_defense[['TEAM_ABBREVIATION', 'POSS', 'PPP', 'FG%']].head(10))
+```
+
+## Analysis Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Offensive Identity" icon="basketball">
+    Understand team's preferred offensive actions and where they generate most possessions
+  </Card>
+  <Card title="Defensive Scheme" icon="shield">
+    Identify which play types a defense struggles to guard or excels at stopping
+  </Card>
+  <Card title="Efficiency Analysis" icon="chart-line">
+    Find high-volume, high-efficiency play types for a team to emphasize
+  </Card>
+  <Card title="Matchup Preparation" icon="chess">
+    Compare Team A's offensive strengths against Team B's defensive weaknesses
+  </Card>
+</CardGroup>
+
+## Key Metrics
+
+**PPP (Points Per Possession)** is the primary efficiency metric:
+- **Elite**: > 1.10 PPP
+- **Good**: 1.00 - 1.10 PPP  
+- **Average**: 0.90 - 1.00 PPP
+- **Poor**: < 0.90 PPP
+
+**SCORE%**: Percentage of possessions that result in a made basket
+
+**TOV%**: Turnover rate for the play type
+
+## Configuration
+
+**Rate Limiting**: Includes delays between API requests
+
+**Season Format**: Uses `YYYY-YY` format (e.g., "2023-24")
+
+**API Headers**: Requires standard NBA.com headers
+
+## Related Scripts
+
+- [new_tracking.py](/api/tracking) - Drives, catches, and touches data
+- [team_shooting.py](/api/team-shooting) - Team shooting by defender distance

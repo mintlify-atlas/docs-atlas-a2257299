@@ -70,8 +70,12 @@
               "api/make-index",
               "api/defense",
               "api/player-shooting",
+              "api/dribble",
               "api/hustle",
               "api/tracking",
+              "api/team-shooting",
+              "api/misc",
+              "api/player-level",
               "api/contract-data"
             ]
           }

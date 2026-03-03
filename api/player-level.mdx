@@ -1,0 +1,294 @@
+---
+title: 'player_level.py'
+description: 'Advanced player-level data aggregations and transformations'
+---
+
+## Overview
+
+The `player_level.py` script processes and combines multiple tracking datasets into comprehensive player profiles. It handles data formatting, column renaming, and creates unified views of player performance across different tracking categories.
+
+## Purpose
+
+This script serves as a data transformation layer that:
+- Standardizes column names across different tracking endpoints
+- Combines related datasets (passing + touches, drives + possessions, etc.)
+- Prepares clean, analysis-ready datasets
+- Converts percentage fields to consistent 0-100 scale
+
+## Functions
+
+### prep_passing()
+
+Formats passing statistics with standardized column names.
+
+<ParamField path="passing" type="DataFrame" required>
+  Raw passing DataFrame from NBA API
+</ParamField>
+
+**Returns**: Formatted DataFrame with columns:
+- `PLAYER`, `TEAM`, `GP`, `W`, `L`, `MIN`
+- `PassesMade`, `PassesReceived`
+- `AST`, `SecondaryAST`, `PotentialAST`
+- `AST PTSCreated`, `ASTAdj`
+- `AST ToPass%`, `AST ToPass% Adj`
+- `PLAYER_ID`, `TEAM_ID`, `FT_AST`
+
+```python
+# From player_level.py:19-30
+def prep_passing(passing):
+    pid = passing['PLAYER_ID']
+    tid = passing['TEAM_ID']
+    ft_ast = passing['FT_AST']
+    passing = passing.drop(columns = ['PLAYER_ID','TEAM_ID','FT_AST'])
+    passing.columns = ['PLAYER', 'TEAM', 'GP', 'W', 'L', 'MIN', 
+                       'PassesMade', 'PassesReceived',
+                       'AST', 'SecondaryAST', 'PotentialAST', 
+                       'AST PTSCreated', 'ASTAdj',
+                       'AST ToPass%', 'AST ToPass% Adj']
+    passing['PLAYER_ID'] = pid
+    passing['TEAM_ID']=tid
+    passing['FT_AST'] = ft_ast
+    return passing
+```
+
+### format_drives()
+
+Standardizes drive tracking data column names and scales.
+
+<ParamField path="df" type="DataFrame" required>
+  Raw drives DataFrame
+</ParamField>
+
+**Returns**: Formatted DataFrame with:
+- Removed `DRIVE_` prefix from all columns
+- Percentage columns scaled to 0-100
+- Standardized column names (e.g., `PASSES` → `PASS`, `TOV` → `TO`)
+
+```python
+# From player_level.py:31-43
+def format_drives(df):
+    df.columns = [col.split('DRIVE_')[-1] for col in df.columns]
+    df.columns = [col.replace('_PCT','%') for col in df.columns]
+    replace_columns = {'PASSES':'PASS', 'PASSES%':'PASS%', 
+                       'PLAYER_NAME':'PLAYER', 
+                       'TEAM_ABBREVIATION':'TEAM', 'TOV':'TO'}
+    df = df.rename(columns=replace_columns)
+    df = df[['PLAYER_ID','PLAYER', 'TEAM', 'GP', 'W', 'L', 'MIN', 
+             'DRIVES', 'FGM', 'FGA', 'FG%', 'FTM', 'FTA', 'FT%', 
+             'PTS', 'PTS%', 'PASS', 'PASS%', 'AST', 'AST%',
+             'TO', 'TOV%', 'PF', 'PF%']]
+    for col in df:
+        if '%' in col:
+            df[col]*=100
+    return df
+```
+
+### prep_touches()
+
+Formats touch tracking data with readable column names.
+
+<ParamField path="touches" type="DataFrame" required>
+  Raw touches DataFrame
+</ParamField>
+
+**Returns**: Formatted DataFrame with columns:
+- `PLAYER`, `TEAM`, `GP`, `W`, `L`, `MIN`, `PTS`
+- `TOUCHES`, `Front CTTouches`, `Time OfPoss`
+- `Avg Sec PerTouch`, `Avg Drib PerTouch`, `PTS PerTouch`
+- `ElbowTouches`, `PostUps`, `PaintTouches`
+- `PTS PerElbow Touch`, `PTS PerPost Touch`, `PTS PerPaint Touch`
+
+### prep_cs()
+
+Formats catch-and-shoot data.
+
+<ParamField path="cs" type="DataFrame" required>
+  Raw catch-and-shoot DataFrame
+</ParamField>
+
+**Returns**: Formatted DataFrame with:
+- `PLAYER`, `TEAM`, `GP`, `MIN`
+- `FGM`, `FGA`, `FG%`
+- `3PM`, `3PA`, `3P%`
+- `eFG%`, `PTS`, `PLAYER_ID`
+
+### prep_elbow()
+
+Formats elbow touch tracking data.
+
+<ParamField path="elbow" type="DataFrame" required>
+  Raw elbow touches DataFrame
+</ParamField>
+
+**Returns**: Formatted DataFrame with possession outcomes from elbow position
+
+### prep_post()
+
+Formats post-up tracking data.
+
+<ParamField path="post" type="DataFrame" required>
+  Raw post-up DataFrame
+</ParamField>
+
+**Returns**: Formatted DataFrame with post-up possession outcomes
+
+### prep_paint()
+
+Formats paint touch tracking data.
+
+<ParamField path="paint" type="DataFrame" required>
+  Raw paint touches DataFrame
+</ParamField>
+
+**Returns**: Formatted DataFrame with paint touch outcomes
+
+## Data Transformations
+
+### Column Name Standardization
+
+The script applies consistent naming conventions:
+
+| Raw API Name | Standardized Name |
+|--------------|-------------------|
+| `PLAYER_NAME` | `PLAYER` |
+| `TEAM_ABBREVIATION` | `TEAM` |
+| `DRIVE_FGM` | `FGM` |
+| `CATCH_SHOOT_FG_PCT` | `FG%` |
+| `TOV` | `TO` |
+| `PASSES` | `PASS` |
+
+### Percentage Scaling
+
+All percentage fields are converted to 0-100 scale:
+
+```python
+for col in df:
+    if '%' in col:
+        df[col] *= 100
+```
+
+This ensures consistency across all output files.
+
+## Usage Examples
+
+### Format Drives Data
+
+```python
+import pandas as pd
+from player_level import format_drives
+
+# Load raw drives data from API
+raw_drives = pd.read_csv('raw_drives_from_api.csv')
+
+# Format for analysis
+formatted_drives = format_drives(raw_drives)
+
+print(formatted_drives.columns)
+# ['PLAYER_ID', 'PLAYER', 'TEAM', 'GP', 'W', 'L', 'MIN', 'DRIVES', ...]
+```
+
+### Combine Passing and Touches
+
+```python
+import pandas as pd
+from player_level import prep_passing, prep_touches
+
+# Load raw data
+passing_raw = pd.read_csv('raw_passing.csv')
+touches_raw = pd.read_csv('raw_touches.csv')
+
+# Format both
+passing = prep_passing(passing_raw)
+touches = prep_touches(touches_raw)
+
+# Merge on player ID
+player_profile = passing.merge(
+    touches, 
+    on=['PLAYER_ID', 'TEAM_ID', 'year'],
+    suffixes=('_pass', '_touch')
+)
+
+print(f"Combined profile: {len(player_profile)} players")
+```
+
+### Create Comprehensive Player Profile
+
+```python
+import pandas as pd
+from player_level import *
+
+# Load all tracking categories
+passing = prep_passing(pd.read_csv('raw_passing.csv'))
+touches = prep_touches(pd.read_csv('raw_touches.csv'))
+drives = format_drives(pd.read_csv('raw_drives.csv'))
+cs = prep_cs(pd.read_csv('raw_catchshoot.csv'))
+elbow = prep_elbow(pd.read_csv('raw_elbow.csv'))
+post = prep_post(pd.read_csv('raw_post.csv'))
+paint = prep_paint(pd.read_csv('raw_paint.csv'))
+
+# Merge all on PLAYER_ID
+full_profile = passing.merge(touches, on='PLAYER_ID', how='outer')
+full_profile = full_profile.merge(drives, on='PLAYER_ID', how='outer')
+full_profile = full_profile.merge(cs, on='PLAYER_ID', how='outer')
+# ... continue merging
+
+print(f"Full profile columns: {len(full_profile.columns)}")
+print(f"Players: {len(full_profile)}")
+```
+
+### Analyze Player Tendencies
+
+```python
+import pandas as pd
+from player_level import prep_touches, format_drives
+
+touches = prep_touches(pd.read_csv('raw_touches.csv'))
+drives = format_drives(pd.read_csv('raw_drives.csv'))
+
+# Merge touches and drives
+profile = touches.merge(drives, on='PLAYER_ID')
+
+# Calculate drive rate
+profile['DRIVE_RATE'] = (profile['DRIVES'] / profile['TOUCHES']) * 100
+
+# Find high-usage drivers
+high_drivers = profile[
+    (profile['TOUCHES'] >= 1000) & 
+    (profile['DRIVE_RATE'] >= 15)
+].sort_values('DRIVE_RATE', ascending=False)
+
+print(high_drivers[['PLAYER', 'TOUCHES', 'DRIVES', 'DRIVE_RATE']].head(10))
+```
+
+## Analysis Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Data Integration" icon="link">
+    Combine multiple tracking datasets into unified player profiles
+  </Card>
+  <Card title="Standardization" icon="ruler">
+    Ensure consistent column names and scales across all datasets
+  </Card>
+  <Card title="Player Classification" icon="users">
+    Group players by usage patterns (volume passer, paint scorer, perimeter shooter)
+  </Card>
+  <Card title="Role Analysis" icon="chart-mixed">
+    Understand player offensive roles through touch location and action type
+  </Card>
+</CardGroup>
+
+## Output Datasets
+
+This script doesn't directly create output CSVs but prepares data for:
+- `passing.csv` / `passing_ps.csv`
+- `drives.csv`
+- `catchshoot.csv`
+- `elbow.csv`
+- `post.csv` / `postup.csv`
+- `paint.csv`
+- `possessions.csv` / `poss.csv`
+
+## Related Scripts
+
+- [new_tracking.py](/api/tracking) - Collects raw tracking data that this script formats
+- [misc.py](/api/misc) - Play-type statistics that complement tracking data

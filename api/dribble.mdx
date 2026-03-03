@@ -1,0 +1,263 @@
+---
+title: 'dribble.py'
+description: 'Dribble and shot creation metrics collection'
+---
+
+## Overview
+
+The `dribble.py` script collects shooting performance data categorized by the number of dribbles taken before the shot. This provides insight into shot creation ability, isolation scoring, and rhythm shooting patterns.
+
+## Data Source
+
+**API**: NBA.com Stats API  
+**Endpoint**: `leaguedashplayerptshot` with `DribbleRange` parameter
+
+## Functions
+
+### get_dribbleshots()
+
+Retrieves player shooting statistics grouped by dribble count.
+
+<ParamField path="years" type="list" required>
+  List of season years to collect (e.g., `[2023, 2024]`)
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Set to `True` for playoff data, `False` for regular season
+</ParamField>
+
+**Dribble Categories**:
+- **0 Dribbles** - Catch and shoot immediately
+- **1 Dribble** - One dribble before shooting  
+- **2 Dribbles** - Two dribbles before shooting
+- **3-6 Dribbles** - Multiple dribbles, moderate creation
+- **7+ Dribbles** - Heavy dribbling, high creation difficulty
+
+**Returns**: DataFrame with shooting stats for each dribble category
+
+```python
+# From dribble.py:13-77
+def get_dribbleshots(years,ps = False):
+    dribbles=['0%20Dribbles','1%20Dribble','2%20Dribbles','3-6%20Dribbles','7%2B%20Dribbles']
+    terms = ['0','1','2','3_6','7+']
+    folder = '/player_shooting/'
+    sfolder=''
+    stype = "Regular%20Season"
+    if ps == True:
+        stype="Playoffs"
+        sfolder = "/playoffs"
+    dataframe=[]
+    for year in years:
+        i = 0
+        for dribble in dribbles:
+            season = str(year)+'-'+str(year+1 - 2000)
+            part1 = "https://stats.nba.com/stats/leaguedashplayerptshot?CloseDefDistRange=&College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&DribbleRange="
+            part2 = "&GameScope=&GameSegment=&GeneralRange=&Height=&LastNGames=0&LeagueID=00&Location=&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&Season="
+            part3 = "&SeasonSegment=&SeasonType="+stype+"&ShotClockRange=&ShotDistRange=&StarterBench=&TeamID=0&TouchTimeRange=&VsConference=&VsDivision=&Weight="
+            url = part1+dribble+part2+season+part3
+            # ... API call and processing
+```
+
+### master_dribble()
+
+Updates master dribble shot files with new season data.
+
+<ParamField path="year" type="integer" required>
+  Season year to update
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Set to `True` for playoff data
+</ParamField>
+
+**Returns**: Updated master DataFrame
+
+## Output Files
+
+### dribbleshot.csv / dribbleshot_ps.csv
+
+Comprehensive shooting data by dribble count.
+
+<ResponseField name="PLAYER_ID" type="integer" required>
+  NBA player ID
+</ResponseField>
+
+<ResponseField name="PLAYER" type="string" required>
+  Player name
+</ResponseField>
+
+<ResponseField name="TEAM" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="AGE" type="integer">
+  Player age during season
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games started
+</ResponseField>
+
+<ResponseField name="FREQ%" type="float">
+  Frequency of shots in this dribble category (0-100%)
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goal attempts
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-100%)
+</ResponseField>
+
+<ResponseField name="EFG%" type="float">
+  Effective field goal percentage (0-100%)
+</ResponseField>
+
+<ResponseField name="2FG FREQ%" type="float">
+  Two-point frequency within category
+</ResponseField>
+
+<ResponseField name="2FGM" type="integer">
+  Two-point field goals made
+</ResponseField>
+
+<ResponseField name="2FGA" type="integer">
+  Two-point attempts
+</ResponseField>
+
+<ResponseField name="2FG%" type="float">
+  Two-point percentage
+</ResponseField>
+
+<ResponseField name="3FG FREQ%" type="float">
+  Three-point frequency within category
+</ResponseField>
+
+<ResponseField name="3PM" type="integer">
+  Three-pointers made
+</ResponseField>
+
+<ResponseField name="3PA" type="integer">
+  Three-point attempts
+</ResponseField>
+
+<ResponseField name="3P%" type="float">
+  Three-point percentage
+</ResponseField>
+
+<ResponseField name="dribbles" type="string" required>
+  Dribble category: "0", "1", "2", "3_6", "7+"
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+### jumpdribble.csv / jumpdribble_ps.csv
+
+Jump shot data filtered by dribble count (subset of dribbleshot focusing on jump shots).
+
+## Usage Examples
+
+### Collect Regular Season Data
+
+```python
+import pandas as pd
+from dribble import get_dribbleshots
+
+# Get 2024 regular season dribble shooting data
+df = get_dribbleshots([2024], ps=False)
+
+# View distribution for a specific player
+player_data = df[df['PLAYER'] == 'Stephen Curry']
+print(player_data[['dribbles', 'FGA', 'FG%', 'FREQ%']])
+```
+
+### Update Master File
+
+```python
+from dribble import master_dribble
+
+# Update regular season master file with 2024 data
+master_df = master_dribble(2024, ps=False)
+
+# Check total records
+print(f"Total records: {len(master_df)}")
+print(f"Years covered: {master_df['year'].min()} - {master_df['year'].max()}")
+```
+
+### Analyze Shot Creation
+
+```python
+import pandas as pd
+
+df = pd.read_csv('dribbleshot.csv')
+df_2024 = df[df['year'] == 2024]
+
+# Find elite shot creators (high volume 7+ dribbles)
+shot_creators = df_2024[
+    (df_2024['dribbles'] == '7+') & 
+    (df_2024['FGA'] >= 100)
+].sort_values('FG%', ascending=False)
+
+print(shot_creators[['PLAYER', 'TEAM', 'FGA', 'FG%', 'FREQ%']].head(10))
+```
+
+### Compare Efficiency by Dribble Count
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('dribbleshot.csv')
+df_2024 = df[(df['year'] == 2024) & (df['FGA'] >= 50)]
+
+# Average efficiency by dribble category
+efficiency = df_2024.groupby('dribbles').agg({
+    'FG%': 'mean',
+    'EFG%': 'mean',
+    'FGA': 'sum'
+}).reset_index()
+
+print(efficiency)
+# Typically: 0 dribbles (C&S) > 1-2 dribbles > 3-6 > 7+ in efficiency
+```
+
+## Analysis Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Shot Creation Ability" icon="basketball">
+    Identify players who can create their own shot (high 7+ dribble volume and efficiency)
+  </Card>
+  <Card title="Rhythm Shooting" icon="chart-line">
+    Find players who shoot better with 1-2 dribbles vs catch-and-shoot
+  </Card>
+  <Card title="Offensive Role" icon="user-group">
+    Understand if a player is primarily a spot-up shooter or isolation scorer
+  </Card>
+  <Card title="Efficiency Decline" icon="chart-mixed">
+    Measure how efficiency drops as dribble count increases
+  </Card>
+</CardGroup>
+
+## Configuration
+
+**Rate Limiting**: Includes delays between API requests (see script for timing)
+
+**Season Format**: Uses `YYYY-YY` format (e.g., "2023-24")
+
+**API Headers**: Requires standard NBA.com headers (User-Agent, Host, Referer)
+
+## Related Scripts
+
+- [player_shooting.py](/api/player-shooting) - Shot quality by defender distance
+- [new_tracking.py](/api/tracking) - Detailed drives and touches data

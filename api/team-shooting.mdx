@@ -1,0 +1,283 @@
+---
+title: 'team_shooting.py'
+description: 'Team-level shooting analytics by defender distance'
+---
+
+## Overview
+
+The `team_shooting.py` script collects team-level shooting statistics categorized by defender distance. This provides insight into team offensive shot quality, spacing effectiveness, and how defenses contest opposing teams' shots.
+
+## Data Source
+
+**API**: NBA.com Stats API  
+**Endpoint**: `leaguedashteamptshot` with `CloseDefDistRange` parameter
+
+## Functions
+
+### get_teamshots()
+
+Retrieves team shooting statistics grouped by defender distance.
+
+<ParamField path="years" type="list" required>
+  List of season years to collect (e.g., `[2023, 2024]`)
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Set to `True` for playoff data, `False` for regular season
+</ParamField>
+
+**Defender Distance Categories**:
+- **Very Tight** (0-2 feet) - Heavily contested shots
+- **Tight** (2-4 feet) - Contested shots
+- **Open** (4-6 feet) - Lightly contested shots  
+- **Wide Open** (6+ feet) - Uncontested shots
+
+**Returns**: DataFrame with team shooting stats for each coverage type
+
+```python
+# From team_shooting.py:77-135
+def get_teamshots(years,ps=False):
+    shots = ["0-2%20Feet%20-%20Very%20Tight","2-4%20Feet%20-%20Tight",
+             "4-6%20Feet%20-%20Open","6%2B%20Feet%20-%20Wide%20Open"]
+    terms = ['very_tight.csv','tight.csv','open.csv','wide_open.csv']
+    folder = '/team_shooting/'
+    sfolder=''
+    stype = "Regular%20Season"
+    if ps == True:
+        stype="Playoffs"
+        sfolder = "/playoffs"
+    dataframe=[]
+    for year in years:
+        i = 0
+        for shot in shots:
+            season = str(year)+'-'+str(year+1 - 2000)
+            part1 = "https://stats.nba.com/stats/leaguedashteamptshot?CloseDefDistRange="
+            part2 = "&College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&DribbleRange=&GameScope=&GameSegment=&GeneralRange=&Height=&LastNGames=0&LeagueID=00&Location=&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&Season="
+            part3 = "&SeasonSegment=&SeasonType="+stype+"&ShotClockRange=&ShotDistRange=&StarterBench=&VsConference=&VsDivision=&Weight="
+            url = part1+shot+part2+season+part3
+            # ... API call and processing
+```
+
+### master_team_shooting()
+
+Updates master team shooting files with new season data.
+
+<ParamField path="year" type="integer" required>
+  Season year to update
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Set to `True` for playoff data
+</ParamField>
+
+**Returns**: Updated master DataFrame
+
+## Output Files
+
+### team_shooting.csv / team_shooting_ps.csv
+
+Team offensive shooting by defender distance.
+
+<ResponseField name="TEAM_ID" type="integer" required>
+  NBA team ID
+</ResponseField>
+
+<ResponseField name="TEAM" type="string" required>
+  Team abbreviation (e.g., "LAL", "GSW")
+</ResponseField>
+
+<ResponseField name="TEAMNAME" type="string">
+  Full team name
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games (same as GP for teams)
+</ResponseField>
+
+<ResponseField name="FREQ%" type="float">
+  Frequency of shots in this coverage type (0-100%)
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goal attempts
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-100%)
+</ResponseField>
+
+<ResponseField name="EFG%" type="float">
+  Effective field goal percentage (0-100%)
+</ResponseField>
+
+<ResponseField name="2FG FREQ%" type="float">
+  Two-point frequency within category
+</ResponseField>
+
+<ResponseField name="2FGM" type="integer">
+  Two-point field goals made
+</ResponseField>
+
+<ResponseField name="2FGA" type="integer">
+  Two-point attempts
+</ResponseField>
+
+<ResponseField name="2FG%" type="float">
+  Two-point percentage
+</ResponseField>
+
+<ResponseField name="3FG FREQ%" type="float">
+  Three-point frequency within category
+</ResponseField>
+
+<ResponseField name="3PM" type="integer">
+  Three-pointers made
+</ResponseField>
+
+<ResponseField name="3PA" type="integer">
+  Three-point attempts
+</ResponseField>
+
+<ResponseField name="3P%" type="float">
+  Three-point percentage
+</ResponseField>
+
+<ResponseField name="shot_coverage" type="string" required>
+  Coverage type: "very_tight", "tight", "open", "wide_open"
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+### opp_team_shooting.csv / opp_team_shooting_ps.csv
+
+Opponent shooting allowed by the defense (team defensive stats).
+
+Same schema as `team_shooting.csv` but represents shots allowed by the defense.
+
+## Usage Examples
+
+### Collect Team Data
+
+```python
+from team_shooting import get_teamshots
+
+# Get 2024 regular season team shooting
+df = get_teamshots([2024], ps=False)
+
+# View a specific team's distribution
+lakers = df[df['TEAM'] == 'LAL']
+print(lakers[['shot_coverage', 'FGA', 'FG%', 'FREQ%']])
+```
+
+### Update Master File
+
+```python
+from team_shooting import master_team_shooting
+
+# Update master file with 2024 data
+master_df = master_team_shooting(2024, ps=False)
+
+# Check coverage
+print(f"Teams: {master_df['TEAM'].nunique()}")
+print(f"Years: {master_df['year'].min()} - {master_df['year'].max()}")
+```
+
+### Analyze Shot Quality
+
+```python
+import pandas as pd
+
+df = pd.read_csv('team_shooting.csv')
+df_2024 = df[df['year'] == 2024]
+
+# Calculate weighted shot quality (% of wide open shots)
+wide_open_freq = df_2024[
+    df_2024['shot_coverage'] == 'wide_open'
+][['TEAM', 'FREQ%']].sort_values('FREQ%', ascending=False)
+
+print("Teams generating most wide open shots:")
+print(wide_open_freq.head(10))
+```
+
+### Compare Offense vs Defense
+
+```python
+import pandas as pd
+
+offense = pd.read_csv('team_shooting.csv')
+defense = pd.read_csv('opp_team_shooting.csv')
+
+# 2024 season only
+off_2024 = offense[offense['year'] == 2024]
+def_2024 = defense[defense['year'] == 2024]
+
+# Calculate net wide open advantage
+off_wo = off_2024[off_2024['shot_coverage'] == 'wide_open'][['TEAM', 'FREQ%']].rename(columns={'FREQ%': 'OFF_WO%'})
+def_wo = def_2024[def_2024['shot_coverage'] == 'wide_open'][['TEAM', 'FREQ%']].rename(columns={'FREQ%': 'DEF_WO%'})
+
+net = off_wo.merge(def_wo, on='TEAM')
+net['NET_WO%'] = net['OFF_WO%'] - net['DEF_WO%']
+
+print("Best net wide open advantage (offense creates, defense prevents):")
+print(net.sort_values('NET_WO%', ascending=False).head(10))
+```
+
+### Shot Quality Efficiency
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('team_shooting.csv')
+df_2024 = df[df['year'] == 2024]
+
+# Average efficiency by coverage type
+efficiency = df_2024.groupby('shot_coverage').agg({
+    'FG%': 'mean',
+    'EFG%': 'mean',
+    'FREQ%': 'mean'
+}).reset_index()
+
+print(efficiency)
+# Expected: wide_open > open > tight > very_tight
+```
+
+## Analysis Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Offensive Spacing" icon="arrows-maximize">
+    Measure team's ability to generate open looks through ball movement and off-ball actions
+  </Card>
+  <Card title="Defensive Intensity" icon="shield">
+    Evaluate how well a defense contests shots and limits open opportunities
+  </Card>
+  <Card title="Pace and Space" icon="gauge-high">
+    Identify teams that play faster and generate more wide open threes
+  </Card>
+  <Card title="Shot Quality vs Quantity" icon="chart-mixed">
+    Balance between volume and quality of shot attempts
+  </Card>
+</CardGroup>
+
+## Configuration
+
+**Rate Limiting**: Includes delays between API requests
+
+**Season Format**: Uses `YYYY-YY` format (e.g., "2023-24")
+
+**API Headers**: Requires standard NBA.com headers (User-Agent, Host, Referer)
+
+## Related Scripts
+
+- [player_shooting.py](/api/player-shooting) - Individual player shot quality data
+- [defense.py](/api/defense) - Opponent field goal percentage when guarded
