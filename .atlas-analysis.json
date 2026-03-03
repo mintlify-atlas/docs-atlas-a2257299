@@ -1,0 +1,90 @@
+{
+  "projectType": "data-platform",
+  "projectName": "NBA Statistics Data Platform",
+  "projectDescription": "Comprehensive NBA statistics aggregation platform collecting player, team, and game data from multiple sources across seasons 2014-2025.",
+  "theme": "sequoia",
+  "primaryColor": "#1D428A",
+  "lightColor": "#C8102E",
+  "darkColor": "#1D428A",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "data-sources"
+            ]
+          },
+          {
+            "group": "Data Collections",
+            "pages": [
+              "data/player-statistics",
+              "data/team-statistics",
+              "data/shooting-analytics",
+              "data/defensive-metrics",
+              "data/tracking-data",
+              "data/contract-salary"
+            ]
+          },
+          {
+            "group": "Scripts & Automation",
+            "pages": [
+              "scripts/data-collection",
+              "scripts/scraping-pipeline",
+              "scripts/data-processing"
+            ]
+          },
+          {
+            "group": "Data Schema",
+            "pages": [
+              "schema/overview",
+              "schema/player-stats",
+              "schema/team-stats",
+              "schema/advanced-metrics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Data Scripts",
+            "pages": [
+              "api/make-index",
+              "api/defense",
+              "api/player-shooting",
+              "api/hustle",
+              "api/tracking",
+              "api/contract-data"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-source NBA data aggregation from Basketball Reference, NBA.com, and pbpstats",
+    "Historical data from 2014-2025 seasons (regular season and playoffs)",
+    "Comprehensive player statistics including shooting, defense, hustle, and tracking metrics",
+    "Team-level analytics and play-type breakdowns",
+    "Contract and salary cap information",
+    "Automated data collection and processing pipeline"
+  ],
+  "publicApiSurface": [
+    "make_index.py - Player index and scoring data generation",
+    "defense.py - Defensive metrics collection (rim protection, opponent FG%)",
+    "player_shooting.py - Shot quality analysis by defender distance",
+    "hustle.py - Hustle stats (deflections, loose balls, screens, box outs)",
+    "new_tracking.py - Player tracking and movement data",
+    "dribble.py - Dribble and shot creation metrics",
+    "contract_data.py - NBA salary and contract information",
+    "team_shooting.py - Team-level shooting analytics",
+    "misc.py - Play-by-play and possession data",
+    "player_level.py - Advanced player-level aggregations"
+  ]
+}
