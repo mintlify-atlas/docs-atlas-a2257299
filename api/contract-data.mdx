@@ -1,0 +1,380 @@
+---
+title: 'Contract Data'
+description: 'NBA salary cap, contract, and team option data collection from Spotrac'
+---
+
+## Overview
+
+The contract data scripts scrape and process NBA salary information from Spotrac.com. Two versions exist:
+
+- **contract_data.py** - Legacy version with basic scraping
+- **contract_data2.py** - Modern refactored version with additional data tables
+
+## Data Sources
+
+- **Spotrac.com**: Team salary pages (`spotrac.com/nba/{team-name}/yearly`)
+- **Data Tables Collected**:
+  - Active Roster salaries
+  - Upcoming contract deadlines/options
+  - Cap holds
+  - Dead money
+  - Team salary summary
+
+## Core Functions
+
+### team_books()
+
+Scrapes all salary data for a single team.
+
+<ParamField path="team" type="string" required>
+  Three-letter team abbreviation (e.g., "LAL", "BOS")
+</ParamField>
+
+**Returns**: Tuple of 5 DataFrames: `(salary_df, options_df, cap_holds_df, dead_money_df, summary_df)`
+
+```python
+# From contract_data2.py:333
+def team_books(team: str) -> Tuple[pd.DataFrame, ...]:
+    print(f"Processing {team}...")
+    
+    url = NBA_TEAM_URLS.get(team.upper())
+    dfs, headers = get_team_data(url)
+    
+    # Find tables by their h2 headers
+    salary_df = find_table_by_header(dfs, headers, "Active Roster")
+    options_df = next((df for df in dfs if 'Deadline Date' in df.columns), None)
+    cap_holds_df = find_table_by_header(dfs, headers, "Cap Hold")
+    dead_money_df = find_table_by_header(dfs, headers, "Dead Money")
+    summary_df = find_table_by_header(dfs, headers, "Summary")
+```
+
+### scrape_all_teams()
+
+Scrapes salary data for all NBA teams with rate limiting.
+
+<ParamField path="teams" type="list[str]" required>
+  List of team abbreviations
+</ParamField>
+
+<ParamField path="delay" type="float" default="1.0">
+  Delay in seconds between requests (rate limiting)
+</ParamField>
+
+**Returns**: Tuple of 5 combined DataFrames for all teams
+
+```python
+# From contract_data2.py:374
+def scrape_all_teams(teams: List[str], delay: float = 1.0):
+    salary_dfs = []
+    options_dfs = []
+    cap_holds_dfs = []
+    dead_money_dfs = []
+    summary_dfs = []
+    
+    for team in teams:
+        try:
+            salary_df, options_df, cap_holds_df, dead_money_df, summary_df = team_books(team)
+            # Append non-empty dataframes
+        except Exception as e:
+            print(f"Error processing {team}: {e}")
+        
+        time.sleep(delay)  # Rate limiting
+```
+
+### clean_player_name()
+
+Cleans player names by removing suffixes and duplicates.
+
+<ParamField path="name" type="string" required>
+  Player name to clean
+</ParamField>
+
+**Returns**: Cleaned player name
+
+```python
+# From contract_data2.py:129
+def clean_player_name(name: str) -> str:
+    """Clean player name by removing duplicates.
+    Example: 'Forrest Trent Forrest' -> 'Trent Forrest'
+    """
+    parts = name.split()
+    unique_parts = []
+    for part in parts:
+        if part not in unique_parts:
+            unique_parts.append(part)
+    return " ".join(unique_parts)
+```
+
+### process_salary_value()
+
+Converts salary strings to numeric values.
+
+<ParamField path="value" type="string" required>
+  Salary string (e.g., "$2,087,5191.5%")
+</ParamField>
+
+**Returns**: Float value of salary
+
+```python
+# From contract_data.py:138
+def convert_salary_string(value):
+    """Converts a salary string to a pure number, handling percentage suffixes"""
+    if pd.isna(value) or value == '':
+        return '0'
+    
+    # Remove $ and commas
+    value_str = str(value).replace('$', '').replace(',', '')
+    
+    # Find decimal point (indicating start of percentage)
+    decimal_index = value_str.find('.')
+    if decimal_index != -1:
+        non_decimal_part = value_str[:decimal_index]
+        value_str = non_decimal_part[:-1]  # Remove last digit before decimal
+    
+    # Remove any remaining non-digits
+    clean_value = ''.join(c for c in value_str if c.isdigit())
+    return clean_value if clean_value else '0'
+```
+
+## Salary Data
+
+### Active Roster Salaries
+
+<ResponseField name="Player" type="string">
+  Player name (cleaned)
+</ResponseField>
+
+<ResponseField name="Pos" type="string">
+  Position
+</ResponseField>
+
+<ResponseField name="Age" type="integer">
+  Player age
+</ResponseField>
+
+<ResponseField name="2024-25" type="float">
+  Salary for 2024-25 season
+</ResponseField>
+
+<ResponseField name="2025-26" type="float">
+  Salary for 2025-26 season
+</ResponseField>
+
+<ResponseField name="2026-27" type="float">
+  Salary for 2026-27 season
+</ResponseField>
+
+<ResponseField name="2027-28" type="float">
+  Salary for 2027-28 season
+</ResponseField>
+
+<ResponseField name="2028-29" type="float">
+  Salary for 2028-29 season
+</ResponseField>
+
+<ResponseField name="Guaranteed" type="float">
+  Total guaranteed money (calculated field)
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+## Contract Options Data
+
+<ResponseField name="Player" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="2024-25" type="string">
+  Option type for this season: `"P"` (Player), `"T"` (Team), `"NG"` (Non-guaranteed), `"EE"` (Extension eligible), `"RFA"`, `"UFA"`, or `0`
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+### Option Type Codes
+
+```python
+# From contract_data2.py:96-113
+def process_option_type(row: pd.Series) -> str:
+    option_type = row['Type']
+    if 'PLAYER' in option_type:
+        return 'P'  # Player option
+    elif 'CLUB' in option_type:
+        return 'T'  # Team option
+    elif 'GUARANTEED' in option_type:
+        return 'NG'  # Non-guaranteed
+    elif 'EXTENSION' in option_type:
+        return 'EE'  # Extension eligible
+    elif 'RFA' in option_type:
+        return 'RFA'  # Restricted free agent
+    elif 'UNREST' in option_type:
+        return 'UFA'  # Unrestricted free agent
+```
+
+## Cap Holds Data
+
+<ResponseField name="Player" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="Pos" type="string">
+  Position
+</ResponseField>
+
+<ResponseField name="Age" type="integer">
+  Player age
+</ResponseField>
+
+<ResponseField name="2024-25" type="float">
+  Cap hold amount for 2024-25
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+Cap holds represent salary cap space reserved for unsigned players (free agents, draft picks).
+
+## Dead Money Data
+
+<ResponseField name="Player" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="2024-25" type="float">
+  Dead cap for 2024-25 season
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+Dead money is salary that counts against the cap for players no longer on the roster (waived, traded, etc.).
+
+## Team Summary Data
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="Total Salary" type="float">
+  Total team salary
+</ResponseField>
+
+<ResponseField name="Cap Space" type="float">
+  Available cap space
+</ResponseField>
+
+<ResponseField name="Luxury Tax" type="float">
+  Luxury tax bill
+</ResponseField>
+
+## Output Files
+
+### contract_data.py outputs
+
+<ResponseField name="salary.csv" type="CSV">
+  Active roster salaries for all teams
+</ResponseField>
+
+<ResponseField name="option.csv" type="CSV">
+  Contract options for all teams
+</ResponseField>
+
+### contract_data2.py outputs
+
+<ResponseField name="nba_salaries.csv" type="CSV">
+  Active roster salaries with guaranteed amounts
+</ResponseField>
+
+<ResponseField name="nba_options.csv" type="CSV">
+  Contract options (renamed from nba_summary.csv)
+</ResponseField>
+
+<ResponseField name="nba_cap_holds.csv" type="CSV">
+  Cap holds for all teams
+</ResponseField>
+
+<ResponseField name="nba_dead_money.csv" type="CSV">
+  Dead money for all teams
+</ResponseField>
+
+<ResponseField name="nba_summary.csv" type="CSV">
+  Team salary summaries
+</ResponseField>
+
+## Guaranteed Money Calculation
+
+```python
+# From contract_data2.py:439-452
+temp_df = pd.DataFrame()
+temp_df['Player'] = option_df['Player']
+seasons = ['2024-25', '2025-26', '2026-27', '2027-28', '2028-29']
+
+# If option is NOT a team option, salary is guaranteed
+for season in seasons:
+    temp_df[season] = np.where(option_df[season] != 'T', 1, 0)
+
+guar = pd.DataFrame()
+guar['Player'] = salary_df['Player']
+guar['Guaranteed'] = 0
+
+for season in seasons:
+    guar['Guaranteed'] += temp_df[season] * salary_df[season]
+
+salary_df = salary_df.merge(guar, on='Player')
+```
+
+## Usage Example
+
+```python
+# Scrape all teams
+teams = ['ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DAL', 'DEN', 'DET', 'GSW', 
+         'HOU', 'IND', 'LAC', 'LAL', 'MEM', 'MIA', 'MIL', 'MIN', 'NOP', 'NYK', 
+         'OKC', 'ORL', 'PHI', 'PHX', 'POR', 'SAC', 'SAS', 'TOR', 'UTA', 'WAS']
+
+salary_df, option_df, cap_holds_df, dead_money_df, summary_df = scrape_all_teams(teams)
+
+# Save results
+salary_df.to_csv('nba_salaries.csv', index=False)
+option_df.to_csv('nba_options.csv', index=False)
+cap_holds_df.to_csv('nba_cap_holds.csv', index=False)
+dead_money_df.to_csv('nba_dead_money.csv', index=False)
+summary_df.to_csv('nba_summary.csv', index=False)
+```
+
+**Output**:
+```
+Processing ATL...
+Processing BOS...
+Processing BKN...
+...
+Saved to nba_salaries.csv
+```
+
+## Manual Corrections
+
+Both scripts include manual corrections for data quality:
+
+```python
+# From contract_data2.py:458-464
+salary_df.loc[salary_df['Player'].str.contains('Branden Carlson'), '2024-25'] = 990895
+
+option_df.loc[option_df['Player'].str.contains('Scottie Barnes'), '2025-26'] = 0
+option_df.loc[option_df['Player'].str.contains('Bradley Beal'), '2026-27'] = 'P'
+option_df.loc[option_df['Player'].str.contains('Jalen Brunson'), '2024-25'] = 0
+option_df.loc[option_df['Player'].str.contains('Jalen Brunson'), '2025-26'] = 0
+option_df.loc[option_df['Player'].str.contains('Julius Randle'), '2026-27'] = 'P'
+```
+
+## Key Features
+
+- **Multi-table extraction**: Scrapes 5 different data tables per team
+- **Rate limiting**: Built-in delays to respect Spotrac's servers
+- **Data cleaning**: Handles complex salary formats with percentages
+- **Player name normalization**: Removes suffixes and duplicates
+- **Guaranteed money calculation**: Computes total guaranteed salary based on options
+- **Manual override support**: Allows corrections for data quality issues

@@ -1,0 +1,402 @@
+---
+title: Scraping Pipeline
+description: Deep dive into web scraping mechanics, API calls, and data extraction patterns
+---
+
+## Data Sources
+
+The platform aggregates data from three primary sources:
+
+<CardGroup cols={3}>
+  <Card title="Basketball Reference" icon="basketball">
+    Historical player stats, per-possession metrics, team records
+  </Card>
+  <Card title="NBA.com Stats API" icon="chart-line">
+    Official tracking data, shooting metrics, hustle stats
+  </Card>
+  <Card title="PBPStats API" icon="code">
+    Play-by-play derived metrics, on/off splits, possession stats
+  </Card>
+</CardGroup>
+
+## Basketball Reference Scraping
+
+### BeautifulSoup Pattern
+
+Basketball Reference data is scraped using BeautifulSoup with `data-stat` attribute selectors:
+
+```python
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import time
+
+def pull_bref_score(ps=False):
+    leagues_or_playoffs = "playoffs" if ps else "leagues"
+    frames = []
+    
+    for year in range(2025, 2026):
+        url = f"https://www.basketball-reference.com/{leagues_or_playoffs}/NBA_{year}_per_poss.html"
+        
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response.encoding = 'utf-8'
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Find table by ID
+        table = soup.find('table', id='per_poss_stats')
+        tbody = table.find('tbody')
+        rows = tbody.find_all('tr')
+```
+
+### Data Extraction Helper Functions
+
+The pipeline uses helper functions to safely extract stats:
+
+```python
+def get_stat_from_row(row_obj, stat_name, default_value="0"):
+    """Extract stat value using data-stat attribute"""
+    cell = row_obj.find(['td', 'th'], {'data-stat': stat_name})
+    if cell:
+        text_content = cell.text.strip()
+        return text_content if text_content else default_value
+    return default_value
+
+def get_player_url_from_row(row_obj, stat_name="player", default_value="N/A"):
+    """Extract player URL for ID mapping"""
+    cell = row_obj.find(['td', 'th'], {'data-stat': stat_name})
+    if cell and cell.a and 'href' in cell.a.attrs:
+        return "https://www.basketball-reference.com" + cell.a['href']
+    return default_value
+```
+
+### Row Processing Loop
+
+<Steps>
+  <Step title="Filter Header Rows">
+    Skip rows with class `thead` that contain column headers
+    ```python
+    if 'thead' in row_obj.get('class', []):
+        continue
+    ```
+  </Step>
+  
+  <Step title="Extract Core Stats">
+    Pull player name, team, games played, minutes using data-stat attributes:
+    ```python
+    player_name = get_stat_from_row(row_obj, "player", "N/A")
+    team_acronym = get_stat_from_row(row_obj, "team_id", "UNK")
+    gp = get_stat_from_row(row_obj, "g")
+    mp = get_stat_from_row(row_obj, "mp")
+    ```
+  </Step>
+  
+  <Step title="Extract Shooting Stats">
+    Fetch FG, 3P, FT data:
+    ```python
+    fga = get_stat_from_row(row_obj, "fga_per_poss")
+    fg = get_stat_from_row(row_obj, "fg_per_poss")
+    tpa = get_stat_from_row(row_obj, "fg3a_per_poss")
+    fta = get_stat_from_row(row_obj, "fta_per_poss")
+    pts = get_stat_from_row(row_obj, "pts_per_poss")
+    ```
+  </Step>
+  
+  <Step title="Build DataFrame">
+    Append extracted data to list and convert to pandas DataFrame
+  </Step>
+</Steps>
+
+### Rate Limiting
+
+<Warning>
+Basketball Reference scraping includes mandatory delays between requests:
+</Warning>
+
+```python
+time.sleep(2)  # 2-second delay between seasons
+time.sleep(3)  # 3-second delay for detailed stats
+```
+
+## NBA.com Stats API
+
+### Request Headers
+
+NBA.com's stats API requires specific headers to avoid rejection:
+
+```python
+headers = {
+    "Host": "stats.nba.com",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Referer": "https://stats.nba.com/"
+}
+```
+
+### Endpoint Structure
+
+API endpoints follow a consistent pattern:
+
+```python
+base_url = "https://stats.nba.com/stats/"
+endpoints = {
+    "player_shooting": "leaguedashplayerptshot",
+    "defense": "leaguedashptdefend",
+    "hustle": "leaguehustlestatsplayer",
+    "tracking": "leaguedashptstats"
+}
+```
+
+### Player Shooting Example
+
+Fetching shooting stats by closest defender distance:
+
+```python
+def get_playershots(years, ps=False):
+    shots = [
+        "0-2%20Feet%20-%20Very%20Tight",
+        "2-4%20Feet%20-%20Tight",
+        "4-6%20Feet%20-%20Open",
+        "6%2B%20Feet%20-%20Wide%20Open"
+    ]
+    stype = "Playoffs" if ps else "Regular%20Season"
+    
+    for year in years:
+        for shot in shots:
+            season = f"{year}-{str(year+1-2000)}"
+            url = (
+                f"https://stats.nba.com/stats/leaguedashplayerptshot?"
+                f"CloseDefDistRange={shot}"
+                f"&Season={season}"
+                f"&SeasonType={stype}"
+                f"&PerMode=Totals"
+            )
+            
+            json_response = requests.get(url, headers=headers).json()
+            data = json_response["resultSets"][0]["rowSet"]
+            columns = json_response["resultSets"][0]["headers"]
+            df = pd.DataFrame.from_records(data, columns=columns)
+```
+
+### Defense Stats Example
+
+Fetching defensive field goal percentage data:
+
+```python
+def update_dash(ps=False):
+    stype = 'Playoffs' if ps else 'Regular%20Season'
+    
+    # Overall defense
+    url = (
+        f"https://stats.nba.com/stats/leaguedashptdefend?"
+        f"DefenseCategory=Overall"
+        f"&Season=2024-25"
+        f"&SeasonType={stype}"
+        f"&PerMode=Totals"
+    )
+    
+    json_response = requests.get(url, headers=headers).json()
+    data = json_response["resultSets"][0]["rowSet"]
+    columns = json_response["resultSets"][0]["headers"]
+    df = pd.DataFrame.from_records(data, columns=columns)
+```
+
+### Tracking Stats Categories
+
+The tracking endpoint supports multiple measurement types:
+
+```python
+def get_tracking(years, ps=False):
+    measure_types = [
+        "Drives",
+        "CatchShoot",
+        "Passing",
+        "Possessions",
+        "ElbowTouch",
+        "PostTouch",
+        "PaintTouch",
+        "PullUpShot"
+    ]
+    
+    for measure in measure_types:
+        url = (
+            f"https://stats.nba.com/stats/leaguedashptstats?"
+            f"PtMeasureType={measure}"
+            f"&Season={season}"
+            f"&SeasonType={stype}"
+            f"&PlayerOrTeam=Player"
+            f"&PerMode=Totals"
+        )
+```
+
+## PBPStats API Integration
+
+### Team and Player Indexes
+
+PBPStats requires entity IDs, fetched from their index endpoints:
+
+```python
+def get_index():
+    # Get team IDs
+    teams_response = requests.get("https://api.pbpstats.com/get-teams/nba")
+    teams = teams_response.json()
+    team_dict = {team['text']: team['id'] for team in teams['teams']}
+    
+    # Get player IDs
+    players_response = requests.get(
+        "https://api.pbpstats.com/get-all-players-for-league/nba"
+    )
+    players = players_response.json()["players"]
+    player_dict = {player.lower(): num for num, player in players.items()}
+    
+    return player_dict, team_dict
+```
+
+### On/Off Stats Request
+
+Fetching defensive rim protection metrics:
+
+```python
+def wowy_statlog(stat, start_year, ps=False):
+    s_type = 'Playoffs' if ps else 'Regular Season'
+    player_dict, team_dict = get_index()
+    frames = []
+    
+    for season in range(start_year, 2026):
+        season_s = f"{season-1}-{str(season%100).zfill(2)}"
+        url = "https://api.pbpstats.com/get-on-off/nba/stat"
+        
+        for team in team_dict.keys():
+            time.sleep(3)  # Rate limiting
+            
+            params = {
+                "Season": season_s,
+                "SeasonType": s_type,
+                "TeamId": team_dict[team],
+                "Stat": stat  # e.g., "AtRimAccuracyOpponent"
+            }
+            
+            response = requests.get(url, params=params)
+            response_json = response.json()
+            df = pd.DataFrame(response_json['results'])
+```
+
+### Available Stats
+
+Commonly used PBPStats metrics:
+
+| Stat Parameter | Description |
+|----------------|-------------|
+| `AtRimAccuracyOpponent` | Opponent FG% at rim when defended |
+| `AtRimFrequencyOpponent` | % of opponent shots at rim |
+| `FG2APctBlocked` | 2PT block percentage |
+
+## Salary Data Scraping
+
+### HoopsHype Source
+
+Historical salary data scraped from HoopsHype:
+
+```python
+urls_dict = {
+    "ATL": "https://hoopshype.com/salaries/atlanta_hawks/",
+    "BOS": "https://hoopshype.com/salaries/boston_celtics/",
+    # ... all 30 teams
+}
+
+for team, base_url in urls_dict.items():
+    for year in range(1991, 2025):
+        season_str = f"{year-1}-{year}"
+        url = f"{base_url}{season_str}/"
+        
+        df = pd.read_html(url)[0]  # pandas reads HTML table
+        df.columns = df.columns.droplevel()  # Clean multi-index
+        df.columns = ['Player', 'Salary']
+        df['Team'] = team
+        df['Year'] = year
+```
+
+### Spotrac Source
+
+Current contract details from Spotrac:
+
+```python
+def team_books(team):
+    nba_team_urls = {
+        "ATL": "https://www.spotrac.com/nba/atlanta-hawks/yearly",
+        # ... all 30 teams
+    }
+    
+    url = nba_team_urls[team.upper()]
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    # Extract player contract links
+    tbodies = soup.find_all('tbody')
+    for tbody in tbodies:
+        links = td.find_all('a')
+        for link in links:
+            href = link.get('href')
+            if href and href != 'javascript:void(0)':
+                # Extract Spotrac player ID from URL
+                player_id = href.split('id/')[-1]
+```
+
+## Response Processing
+
+### Column Renaming
+
+Standardize API column names:
+
+```python
+new_columns = {
+    'FG2A_FREQUENCY': '2FG FREQ%',
+    'FG2_PCT': '2FG%',
+    'FG3A_FREQUENCY': '3FG FREQ%',
+    'FG3_PCT': '3P%',
+    'EFG_PCT': 'EFG%',
+    'PLAYER_NAME': 'PLAYER',
+    'PLAYER_LAST_TEAM_ABBREVIATION': 'TEAM'
+}
+df = df.rename(columns=new_columns)
+```
+
+### Percentage Conversion
+
+NBA API returns decimals; convert to percentages:
+
+```python
+for col in df.columns:
+    if '%' in col or 'PERC' in col:
+        df[col] *= 100
+```
+
+## Rate Limiting Strategy
+
+<Warning>
+All scraping scripts implement delays to avoid IP bans:
+</Warning>
+
+```python
+# Basketball Reference: 2-3 second delays
+time.sleep(2)
+
+# NBA.com: No explicit delay (API is official)
+# But loop naturally staggers requests
+
+# PBPStats: 3-second delays per team iteration
+time.sleep(3)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Processing" icon="gears" href="/scripts/data-processing">
+    Learn how scraped data is cleaned, merged, and transformed
+  </Card>
+  <Card title="Data Collection" icon="database" href="/scripts/data-collection">
+    Back to collection architecture overview
+  </Card>
+</CardGroup>

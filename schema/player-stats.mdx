@@ -1,0 +1,736 @@
+---
+title: 'Player Statistics Schema'
+description: 'Complete field reference for player-level datasets'
+---
+
+## Overview
+
+Player statistics are organized across multiple CSV files, each focusing on different aspects of performance. All player datasets share common identifier fields and can be joined using `nba_id` (or `PLAYER_ID`) and `year`.
+
+## Core Player Files
+
+### scoring.csv
+
+Basic scoring efficiency and volume metrics.
+
+**File**: `scoring.csv` / `scoring_ps.csv`
+
+<ResponseField name="Player" type="string" required>
+  Player full name
+</ResponseField>
+
+<ResponseField name="nba_id" type="integer" required>
+  Unique player identifier for joining with other datasets
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year (e.g., 2014, 2015)
+</ResponseField>
+
+<ResponseField name="Tm" type="string">
+  Team abbreviation (e.g., "LAL", "GSW", "TOT" for players traded mid-season)
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="MP" type="float">
+  Total minutes played for the season
+</ResponseField>
+
+<ResponseField name="PTS" type="float">
+  Total points scored
+</ResponseField>
+
+<ResponseField name="TS%" type="float">
+  True shooting percentage: `PTS / (2 * (FGA + 0.44 * FTA))`
+  
+  Accounts for the value of 3-pointers and free throws.
+</ResponseField>
+
+**Example**:
+```csv
+Player,TS%,PTS,MP,Tm,G,year,nba_id
+Zaid Abdul-Aziz,51.5,15.9,2459.0,HOU,79,1974,76002.0
+```
+
+### totals.csv
+
+Comprehensive box score statistics including shooting attempts.
+
+**File**: `totals.csv` / `totals_ps.csv`
+
+<ResponseField name="Player" type="string" required>
+  Player full name
+</ResponseField>
+
+<ResponseField name="nba_id" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="Tm" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="MP" type="float">
+  Total minutes played
+</ResponseField>
+
+<ResponseField name="PTS" type="float">
+  Total points
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goal attempts
+</ResponseField>
+
+<ResponseField name="FTA" type="integer">
+  Free throw attempts
+</ResponseField>
+
+<ResponseField name="TS%" type="float">
+  True shooting percentage
+</ResponseField>
+
+### player_shooting.csv
+
+Detailed shooting metrics broken down by shot coverage and distance.
+
+**File**: `player_shooting.csv` / `player_shooting_p.csv`
+
+<ResponseField name="PLAYER_ID" type="integer" required>
+  Unique player identifier (equivalent to `nba_id`)
+</ResponseField>
+
+<ResponseField name="PLAYER" type="string" required>
+  Player name
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="shot_type" type="string" required>
+  Shot coverage category:
+  - `wide_open`: Defender 6+ feet away
+  - `open`: Defender 4-6 feet away
+  - `tight`: Defender 2-4 feet away
+  - `very_tight`: Defender 0-2 feet away
+</ResponseField>
+
+<ResponseField name="TEAM" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="AGE" type="float">
+  Player age during the season
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games started
+</ResponseField>
+
+<ResponseField name="FREQ%" type="float">
+  Frequency percentage - what portion of player's shots fall into this category
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goals attempted
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-100 scale)
+</ResponseField>
+
+<ResponseField name="EFG%" type="float">
+  Effective field goal percentage: `(FGM + 0.5 * 3PM) / FGA`
+</ResponseField>
+
+<ResponseField name="2FG FREQ%" type="float">
+  Frequency of 2-point attempts within this shot type
+</ResponseField>
+
+<ResponseField name="2FGM" type="integer">
+  2-point field goals made
+</ResponseField>
+
+<ResponseField name="2FGA" type="integer">
+  2-point field goals attempted
+</ResponseField>
+
+<ResponseField name="2FG%" type="float">
+  2-point field goal percentage
+</ResponseField>
+
+<ResponseField name="3FG FREQ%" type="float">
+  Frequency of 3-point attempts within this shot type
+</ResponseField>
+
+<ResponseField name="3PM" type="integer">
+  3-pointers made
+</ResponseField>
+
+<ResponseField name="3PA" type="integer">
+  3-pointers attempted
+</ResponseField>
+
+<ResponseField name="3P%" type="float">
+  3-point percentage
+</ResponseField>
+
+**Example**:
+```csv
+PLAYER_ID,PLAYER,TEAM,AGE,GP,G,FREQ%,FGM,FGA,FG%,EFG%,...,year,shot_type
+201933,Blake Griffin,LAC,25.0,80,78,26.5,149,342,43.6,44.9,...,2014,wide_open
+```
+
+## Tracking & Movement Data
+
+### tracking.csv
+
+Player movement, touches, and play-type statistics.
+
+**File**: `tracking.csv` / `tracking_p.csv` / `tracking_ps.csv`
+
+<ResponseField name="PLAYER_ID" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="PLAYER" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="TEAM" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Tracking category:
+  - `drives`: Drives to the basket
+  - `touches`: Touch statistics
+  - `pull_up`: Pull-up shooting
+  - `catch_shoot`: Catch-and-shoot opportunities
+  - `defense`: Defensive tracking
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="W" type="integer">
+  Wins
+</ResponseField>
+
+<ResponseField name="L" type="integer">
+  Losses
+</ResponseField>
+
+<ResponseField name="MIN" type="float">
+  Minutes played
+</ResponseField>
+
+<ResponseField name="DRIVES" type="integer">
+  Number of drives (for drive tracking)
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goals attempted
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage
+</ResponseField>
+
+<ResponseField name="FTM" type="integer">
+  Free throws made
+</ResponseField>
+
+<ResponseField name="FTA" type="integer">
+  Free throws attempted
+</ResponseField>
+
+<ResponseField name="FT%" type="float">
+  Free throw percentage
+</ResponseField>
+
+<ResponseField name="PTS" type="float">
+  Points scored
+</ResponseField>
+
+<ResponseField name="PTS%" type="float">
+  Percentage of team's points
+</ResponseField>
+
+<ResponseField name="PASS" type="integer">
+  Passes made
+</ResponseField>
+
+<ResponseField name="PASS%" type="float">
+  Pass percentage
+</ResponseField>
+
+<ResponseField name="AST" type="integer">
+  Assists
+</ResponseField>
+
+<ResponseField name="AST%" type="float">
+  Assist percentage
+</ResponseField>
+
+<ResponseField name="TO" type="integer">
+  Turnovers
+</ResponseField>
+
+<ResponseField name="TOV%" type="float">
+  Turnover percentage
+</ResponseField>
+
+<ResponseField name="PF" type="integer">
+  Personal fouls
+</ResponseField>
+
+<ResponseField name="PF%" type="float">
+  Foul percentage
+</ResponseField>
+
+<ResponseField name="3PM" type="integer">
+  3-pointers made
+</ResponseField>
+
+<ResponseField name="3PA" type="integer">
+  3-pointers attempted
+</ResponseField>
+
+<ResponseField name="3P%" type="float">
+  3-point percentage
+</ResponseField>
+
+<ResponseField name="eFG%" type="float">
+  Effective field goal percentage
+</ResponseField>
+
+<ResponseField name="Touches" type="integer">
+  Total touches (for touch tracking)
+</ResponseField>
+
+### hustle.csv
+
+Hustle statistics including deflections, loose balls, screens, and distance traveled.
+
+**File**: `hustle.csv` / `hustle_ps.csv`
+
+<ResponseField name="PLAYER_ID" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="PLAYER_NAME" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="TEAM_ID" type="integer">
+  Team identifier
+</ResponseField>
+
+<ResponseField name="TEAM_ABBREVIATION" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="AGE" type="integer">
+  Player age
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played (duplicate field)
+</ResponseField>
+
+<ResponseField name="W" type="integer">
+  Wins
+</ResponseField>
+
+<ResponseField name="L" type="integer">
+  Losses
+</ResponseField>
+
+<ResponseField name="MIN" type="float">
+  Minutes played
+</ResponseField>
+
+<ResponseField name="CONTESTED_SHOTS" type="integer">
+  Total contested shots
+</ResponseField>
+
+<ResponseField name="CONTESTED_SHOTS_2PT" type="integer">
+  Contested 2-point shots
+</ResponseField>
+
+<ResponseField name="CONTESTED_SHOTS_3PT" type="integer">
+  Contested 3-point shots
+</ResponseField>
+
+<ResponseField name="DEFLECTIONS" type="integer">
+  Deflections recorded
+</ResponseField>
+
+<ResponseField name="CHARGES_DRAWN" type="integer">
+  Charges drawn
+</ResponseField>
+
+<ResponseField name="SCREEN_ASSISTS" type="integer">
+  Screen assists - screens leading to made baskets
+</ResponseField>
+
+<ResponseField name="SCREEN_AST_PTS" type="integer">
+  Points generated from screen assists
+</ResponseField>
+
+<ResponseField name="OFF_LOOSE_BALLS_RECOVERED" type="integer">
+  Offensive loose balls recovered
+</ResponseField>
+
+<ResponseField name="DEF_LOOSE_BALLS_RECOVERED" type="integer">
+  Defensive loose balls recovered
+</ResponseField>
+
+<ResponseField name="LOOSE_BALLS_RECOVERED" type="integer">
+  Total loose balls recovered
+</ResponseField>
+
+<ResponseField name="PCT_LOOSE_BALLS_RECOVERED_OFF" type="float">
+  Percentage of loose balls recovered on offense
+</ResponseField>
+
+<ResponseField name="PCT_LOOSE_BALLS_RECOVERED_DEF" type="float">
+  Percentage of loose balls recovered on defense
+</ResponseField>
+
+<ResponseField name="OFF_BOXOUTS" type="integer">
+  Offensive box outs
+</ResponseField>
+
+<ResponseField name="DEF_BOXOUTS" type="integer">
+  Defensive box outs
+</ResponseField>
+
+<ResponseField name="BOX_OUT_PLAYER_TEAM_REBS" type="integer">
+  Team rebounds resulting from box outs
+</ResponseField>
+
+<ResponseField name="BOX_OUT_PLAYER_REBS" type="integer">
+  Player rebounds resulting from box outs
+</ResponseField>
+
+<ResponseField name="BOX_OUTS" type="integer">
+  Total box outs
+</ResponseField>
+
+<ResponseField name="PCT_BOX_OUTS_OFF" type="float">
+  Percentage of offensive box outs
+</ResponseField>
+
+<ResponseField name="PCT_BOX_OUTS_DEF" type="float">
+  Percentage of defensive box outs
+</ResponseField>
+
+<ResponseField name="PCT_BOX_OUTS_TEAM_REB" type="float">
+  Box out to team rebound percentage
+</ResponseField>
+
+<ResponseField name="PCT_BOX_OUTS_REB" type="float">
+  Box out to rebound percentage
+</ResponseField>
+
+<ResponseField name="DIST_FEET" type="float">
+  Total distance traveled in feet
+</ResponseField>
+
+<ResponseField name="DIST_MILES" type="float">
+  Total distance traveled in miles
+</ResponseField>
+
+<ResponseField name="DIST_MILES_OFF" type="float">
+  Distance traveled on offense (miles)
+</ResponseField>
+
+<ResponseField name="DIST_MILES_DEF" type="float">
+  Distance traveled on defense (miles)
+</ResponseField>
+
+<ResponseField name="AVG_SPEED" type="float">
+  Average speed (mph)
+</ResponseField>
+
+<ResponseField name="AVG_SPEED_OFF" type="float">
+  Average speed on offense (mph)
+</ResponseField>
+
+<ResponseField name="AVG_SPEED_DEF" type="float">
+  Average speed on defense (mph)
+</ResponseField>
+
+<ResponseField name="POSS" type="integer">
+  Possessions played
+</ResponseField>
+
+## Defense Data
+
+### defense_master.csv
+
+Defensive field goal percentage metrics.
+
+**File**: `defense_master.csv` / `defense_master_ps.csv`
+
+<ResponseField name="nba_id" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="PLAYER" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="team_id" type="integer">
+  Team identifier
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="overall_dfg%" type="float">
+  Overall defensive field goal percentage - FG% when guarding any shot
+</ResponseField>
+
+<ResponseField name="all_dfga" type="integer">
+  All defensive field goal attempts contested
+</ResponseField>
+
+<ResponseField name="all_dfgm" type="integer">
+  All defensive field goals made against
+</ResponseField>
+
+<ResponseField name="dif%" type="float">
+  Difference percentage - how much better/worse opponents shoot vs their average
+</ResponseField>
+
+<ResponseField name="rim_dfg%" type="float">
+  Defensive FG% at the rim
+</ResponseField>
+
+<ResponseField name="rim_dfga" type="integer">
+  Attempts defended at the rim
+</ResponseField>
+
+<ResponseField name="rim_dfgm" type="integer">
+  Made shots at the rim when defended
+</ResponseField>
+
+<ResponseField name="rim_dif%" type="float">
+  Rim defense difference vs shooter's average
+</ResponseField>
+
+### passing.csv
+
+Passing and ball-handling statistics.
+
+**File**: `passing.csv` / `passing_ps.csv`
+
+<ResponseField name="nba_id" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="Name" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="Minutes" type="float">
+  Total minutes
+</ResponseField>
+
+<ResponseField name="Points" type="integer">
+  Total points
+</ResponseField>
+
+<ResponseField name="Assists" type="integer">
+  Total assists
+</ResponseField>
+
+<ResponseField name="Potential Assists" type="integer">
+  Passes that would be assists if the shot was made
+</ResponseField>
+
+<ResponseField name="POTENTIAL_AST" type="integer">
+  Potential assists (duplicate field)
+</ResponseField>
+
+<ResponseField name="Passes" type="integer">
+  Total passes made
+</ResponseField>
+
+<ResponseField name="PASSES_RECEIVED" type="integer">
+  Passes received
+</ResponseField>
+
+<ResponseField name="AST_PTS_CREATED" type="integer">
+  Points created from assists
+</ResponseField>
+
+<ResponseField name="AST_TO_PASS_PCT" type="float">
+  Assist to pass percentage
+</ResponseField>
+
+<ResponseField name="AST_TO_PASS_PCT_ADJ" type="float">
+  Adjusted assist to pass percentage
+</ResponseField>
+
+<ResponseField name="SECONDARY_AST" type="integer">
+  Secondary assists (pass to the assister)
+</ResponseField>
+
+<ResponseField name="ThreePtAssists" type="integer">
+  Assists on 3-pointers
+</ResponseField>
+
+<ResponseField name="AtRimAssists" type="integer">
+  Assists at the rim
+</ResponseField>
+
+<ResponseField name="High Value Assist %" type="float">
+  Percentage of assists that are high value (dunks, layups, open 3s)
+</ResponseField>
+
+<ResponseField name="Assist PPP" type="float">
+  Points per play on assists
+</ResponseField>
+
+<ResponseField name="TOUCHES" type="integer">
+  Total touches
+</ResponseField>
+
+<ResponseField name="AVG_SEC_PER_TOUCH" type="float">
+  Average seconds per touch
+</ResponseField>
+
+<ResponseField name="AVG_DRIB_PER_TOUCH" type="float">
+  Average dribbles per touch
+</ResponseField>
+
+<ResponseField name="PTS_PER_TOUCH" type="float">
+  Points per touch
+</ResponseField>
+
+<ResponseField name="Turnovers" type="integer">
+  Total turnovers
+</ResponseField>
+
+<ResponseField name="BadPassTurnovers" type="integer">
+  Turnovers from bad passes
+</ResponseField>
+
+<ResponseField name="BadPassSteals" type="integer">
+  Steals from bad passes
+</ResponseField>
+
+<ResponseField name="TsPct" type="float">
+  True shooting percentage
+</ResponseField>
+
+## Usage Examples
+
+### Finding Elite Catch-and-Shoot Players
+
+```python
+import pandas as pd
+
+# Load player shooting data
+shooting = pd.read_csv('player_shooting.csv')
+
+# Filter for wide open 3-point attempts
+wide_open_3s = shooting[
+    (shooting['shot_type'] == 'wide_open') &
+    (shooting['3PA'] >= 100)  # Minimum attempts
+].sort_values('3P%', ascending=False)
+
+print(wide_open_3s[['PLAYER', 'TEAM', '3PM', '3PA', '3P%', 'year']].head(10))
+```
+
+### Analyzing Hustle Impact
+
+```python
+# Load hustle data
+hustle = pd.read_csv('hustle.csv')
+
+# Players who excel at deflections per minute
+hustle['DEFL_PER_MIN'] = hustle['DEFLECTIONS'] / hustle['MIN']
+
+top_deflectors = hustle[
+    hustle['MIN'] >= 1000
+].sort_values('DEFL_PER_MIN', ascending=False)
+
+print(top_deflectors[['PLAYER_NAME', 'TEAM_ABBREVIATION', 'DEFLECTIONS', 'DEFL_PER_MIN']].head(10))
+```
+
+### Join Multiple Player Datasets
+
+```python
+# Combine scoring efficiency with tracking data
+scoring = pd.read_csv('scoring.csv')
+tracking = pd.read_csv('tracking.csv')
+
+# Filter tracking for drives only
+drives = tracking[tracking['type'] == 'drives']
+
+# Merge on player ID and year
+merged = pd.merge(
+    scoring,
+    drives,
+    left_on=['nba_id', 'year'],
+    right_on=['PLAYER_ID', 'year'],
+    how='inner'
+)
+
+print(merged[['Player', 'TS%', 'PTS', 'DRIVES', 'FG%']].head())
+```

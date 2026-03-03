@@ -1,0 +1,340 @@
+---
+title: 'Shooting Analytics'
+description: 'Advanced shooting metrics including catch-and-shoot, pull-ups, shot zones, and shot quality'
+icon: 'bullseye'
+---
+
+## Overview
+
+Shooting analytics datasets provide granular shot-level detail including shot types (catch-and-shoot, pull-up, dribble moves), shot zones (at-rim, mid-range, corner 3s), and contextual shooting metrics. These datasets enable deep-dive analysis of shooting efficiency and shot selection.
+
+## Data Files
+
+<CardGroup cols={2}>
+  <Card title="Catch & Shoot" icon="hands-catching">
+    Catch-and-shoot performance metrics
+    - `catchshoot.csv`
+  </Card>
+  <Card title="Pull-Up Shots" icon="basketball">
+    Pull-up jump shot statistics
+    - `pullup.csv`
+  </Card>
+  <Card title="Shot Zones" icon="map-location-dot">
+    Court zone analytics (rim, paint, mid-range, 3PT)
+    - `shotzone.csv` / `shotzone_ps.csv`
+  </Card>
+  <Card title="Dribble Shooting" icon="dribble">
+    Shots after dribble moves
+    - `dribbleshot.csv` / `dribbleshot_ps.csv`
+    - `dribbleshots.csv` (by dribble count)
+  </Card>
+</CardGroup>
+
+## Schema: Catch and Shoot
+
+**File**: `catchshoot.csv`  
+**Records**: ~27,000+ player-season records  
+**Source**: NBA.com tracking data
+
+### Fields
+
+<Tabs>
+  <Tab title="Player Info">
+    <ResponseField name="PLAYER_ID" type="integer" required>
+      NBA.com unique player identifier
+    </ResponseField>
+    <ResponseField name="PLAYER_NAME" type="string" required>
+      Player name
+    </ResponseField>
+    <ResponseField name="TEAM_ID" type="integer">
+      Team ID from NBA.com
+    </ResponseField>
+    <ResponseField name="TEAM_ABBREVIATION" type="string">
+      Team abbreviation
+    </ResponseField>
+    <ResponseField name="Season" type="string">
+      Season format: "2023-24"
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Game Stats">
+    <ResponseField name="GP" type="integer">
+      Games played
+    </ResponseField>
+    <ResponseField name="W" type="integer">
+      Wins
+    </ResponseField>
+    <ResponseField name="L" type="integer">
+      Losses
+    </ResponseField>
+    <ResponseField name="MIN" type="float">
+      Total minutes played
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Shooting Metrics">
+    <ResponseField name="CATCH_SHOOT_FGM" type="integer">
+      Catch-and-shoot field goals made
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_FGA" type="integer">
+      Catch-and-shoot field goals attempted
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_FG_PCT" type="float">
+      Catch-and-shoot FG% (0-1 scale)
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_PTS" type="integer">
+      Points from catch-and-shoot attempts
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_FG3M" type="integer">
+      Catch-and-shoot 3-pointers made
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_FG3A" type="integer">
+      Catch-and-shoot 3-pointers attempted
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_FG3_PCT" type="float">
+      Catch-and-shoot 3PT% (0-1 scale)
+    </ResponseField>
+    <ResponseField name="CATCH_SHOOT_EFG_PCT" type="float">
+      Catch-and-shoot effective FG%
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Sample Data
+
+```csv
+PLAYER_ID,PLAYER_NAME,TEAM_ID,TEAM_ABBREVIATION,GP,W,L,MIN,CATCH_SHOOT_FGM,CATCH_SHOOT_FGA,CATCH_SHOOT_FG_PCT,CATCH_SHOOT_PTS,CATCH_SHOOT_FG3M,CATCH_SHOOT_FG3A,CATCH_SHOOT_FG3_PCT,CATCH_SHOOT_EFG_PCT,Season
+201985,AJ Price,1610612739,CLE,26,11,15,323.0,10,31,0.323,30,10.0,28.0,0.357,0.484,2014-15
+201166,Aaron Brooks,1610612741,CHI,82,50,32,1885.0,67,157,0.427,198,64.0,152.0,0.421,0.631,2014-15
+```
+
+## Schema: Pull-Up Shots
+
+**File**: `pullup.csv`  
+**Structure**: Similar to catch-and-shoot data
+
+Fields follow the same pattern with `PULL_UP_*` prefix:
+- `PULL_UP_FGM`, `PULL_UP_FGA`, `PULL_UP_FG_PCT`
+- `PULL_UP_FG3M`, `PULL_UP_FG3A`, `PULL_UP_FG3_PCT`
+- `PULL_UP_PTS`, `PULL_UP_EFG_PCT`
+
+## Schema: Shot Zones (Advanced)
+
+**File**: `shotzone.csv` / `shotzone_ps.csv`  
+**Source**: pbpstats.com API  
+**Records**: 50,000+ player-season records
+
+<Accordion title="Core Shot Zone Fields">
+  <ResponseField name="Name" type="string">
+    Player name
+  </ResponseField>
+  <ResponseField name="EntityId" type="integer">
+    pbpstats.com player ID
+  </ResponseField>
+  <ResponseField name="TeamId" type="integer">
+    pbpstats.com team ID
+  </ResponseField>
+  <ResponseField name="GamesPlayed" type="integer">
+    Games played
+  </ResponseField>
+  <ResponseField name="Minutes" type="float">
+    Total minutes
+  </ResponseField>
+  <ResponseField name="year" type="integer">
+    Season ending year
+  </ResponseField>
+</Accordion>
+
+### At-Rim Metrics (< 6 feet)
+
+<ResponseField name="AtRimFGA" type="integer">
+  Field goal attempts at rim
+</ResponseField>
+<ResponseField name="AtRimFGM" type="integer">
+  Field goals made at rim
+</ResponseField>
+<ResponseField name="AtRimAccuracy" type="float">
+  Shooting percentage at rim (0-1 scale)
+</ResponseField>
+
+### Mid-Range Metrics
+
+<ResponseField name="ShortMidRangeFGA" type="integer">
+  Short mid-range attempts
+</ResponseField>
+<ResponseField name="ShortMidRangeFGM" type="integer">
+  Short mid-range makes
+</ResponseField>
+<ResponseField name="ShortMidRangeAccuracy" type="float">
+  Short mid-range FG%
+</ResponseField>
+<ResponseField name="ShortMidRangeFrequency" type="float">
+  Frequency of short mid-range shots
+</ResponseField>
+<ResponseField name="LongMidRangeFGA" type="integer">
+  Long mid-range attempts
+</ResponseField>
+<ResponseField name="LongMidRangeFGM" type="integer">
+  Long mid-range makes
+</ResponseField>
+
+### Three-Point Metrics
+
+<ResponseField name="NonHeaveArc3FGA" type="integer">
+  Three-point attempts (excluding heaves)
+</ResponseField>
+<ResponseField name="NonHeaveArc3FGM" type="integer">
+  Three-point makes (excluding heaves)
+</ResponseField>
+<ResponseField name="NonHeaveFg3Pct" type="float">
+  Three-point percentage
+</ResponseField>
+<ResponseField name="Corner3FGA" type="integer">
+  Corner three-point attempts
+</ResponseField>
+<ResponseField name="Corner3FGM" type="integer">
+  Corner three-point makes
+</ResponseField>
+<ResponseField name="HeaveAttempts" type="integer">
+  Half-court heave attempts
+</ResponseField>
+
+### Advanced Efficiency
+
+<ResponseField name="TsPct" type="float">
+  True shooting percentage (accounts for FTs)
+</ResponseField>
+<ResponseField name="EfgPct" type="float">
+  Effective field goal percentage
+</ResponseField>
+<ResponseField name="ShotQualityAvg" type="float">
+  Average expected points per shot (xPTS model)
+</ResponseField>
+<ResponseField name="SecondChanceShotQualityAvg" type="float">
+  Shot quality on second-chance opportunities
+</ResponseField>
+<ResponseField name="PenaltyShotQualityAvg" type="float">
+  Shot quality in penalty situations
+</ResponseField>
+
+## Schema: Dribble Shooting
+
+**File**: `dribbleshot.csv` / `dribbleshot_ps.csv`  
+**Purpose**: Shot performance after dribble moves (crossovers, hesitations, etc.)
+
+<Note>
+  See [Tracking Data](/data/tracking-data) for detailed dribble drive metrics
+</Note>
+
+## Usage Examples
+
+### Elite Catch-and-Shoot Three-Point Shooters
+
+```python
+import pandas as pd
+
+df = pd.read_csv('catchshoot.csv')
+
+# Find elite catch-and-shoot 3PT shooters (min 100 attempts)
+df['year'] = df['Season'].str.split('-').str[1].astype(int) + 2000
+
+elite_cs = df[
+    (df['year'] == 2024) & 
+    (df['CATCH_SHOOT_FG3A'] >= 100)
+].sort_values('CATCH_SHOOT_FG3_PCT', ascending=False)
+
+print(elite_cs[['PLAYER_NAME', 'TEAM_ABBREVIATION', 'CATCH_SHOOT_FG3A', 'CATCH_SHOOT_FG3_PCT']].head(20))
+```
+
+### Shot Zone Distribution Analysis
+
+```python
+import pandas as pd
+
+df = pd.read_csv('shotzone.csv')
+
+# Calculate shot distribution for a player
+player_name = 'Stephen Curry'
+player = df[(df['Name'] == player_name) & (df['year'] == 2024)].iloc[0]
+
+total_fga = player['AtRimFGA'] + player['ShortMidRangeFGA'] + player['LongMidRangeFGA'] + player['NonHeaveArc3FGA']
+
+print(f"Shot Distribution for {player_name} (2024):")
+print(f"At Rim: {player['AtRimFGA']/total_fga*100:.1f}% ({player['AtRimAccuracy']*100:.1f}% FG)")
+print(f"Short Mid: {player['ShortMidRangeFGA']/total_fga*100:.1f}%")
+print(f"Long Mid: {player['LongMidRangeFGA']/total_fga*100:.1f}%")
+print(f"Three-Point: {player['NonHeaveArc3FGA']/total_fga*100:.1f}% ({player['NonHeaveFg3Pct']*100:.1f}% 3PT)")
+print(f"Corner 3s: {player['Corner3FGA']} attempts ({player['Corner3FGM']} makes)")
+```
+
+### Compare Catch-and-Shoot vs Pull-Up Efficiency
+
+```python
+import pandas as pd
+
+cs = pd.read_csv('catchshoot.csv')
+pu = pd.read_csv('pullup.csv')
+
+# Extract year from Season column
+cs['year'] = cs['Season'].str.split('-').str[1].astype(int) + 2000
+pu['year'] = pu['Season'].str.split('-').str[1].astype(int) + 2000
+
+# Filter 2024, min volume
+cs_2024 = cs[(cs['year'] == 2024) & (cs['CATCH_SHOOT_FG3A'] >= 100)]
+pu_2024 = pu[(pu['year'] == 2024) & (pu['PULL_UP_FG3A'] >= 100)]
+
+# Merge on player
+merged = cs_2024.merge(
+    pu_2024[['PLAYER_ID', 'PULL_UP_FG3_PCT', 'PULL_UP_FG3A']], 
+    on='PLAYER_ID'
+)
+
+merged['CS_vs_PU_Diff'] = merged['CATCH_SHOOT_FG3_PCT'] - merged['PULL_UP_FG3_PCT']
+
+print("Players with Biggest Catch-and-Shoot Advantage:")
+print(merged.sort_values('CS_vs_PU_Diff', ascending=False)[['PLAYER_NAME', 'CATCH_SHOOT_FG3_PCT', 'PULL_UP_FG3_PCT', 'CS_vs_PU_Diff']].head(10))
+```
+
+### Shot Quality vs Actual Performance
+
+```python
+import pandas as pd
+
+df = pd.read_csv('shotzone.csv')
+
+# Compare xPTS (ShotQualityAvg) to actual efficiency
+df_2024 = df[df['year'] == 2024].copy()
+
+# Calculate points per FGA
+df_2024['ActualPPFGA'] = df_2024['Points'] / (df_2024['FG2A'] + df_2024['FG3A'])
+df_2024['OverPerformance'] = df_2024['ActualPPFGA'] - df_2024['ShotQualityAvg']
+
+# Find players beating expected performance
+print("Players Exceeding Shot Quality Expectations:")
+print(df_2024.sort_values('OverPerformance', ascending=False)[['Name', 'ShotQualityAvg', 'ActualPPFGA', 'OverPerformance']].head(20))
+```
+
+## Data Collection Scripts
+
+<CardGroup cols={2}>
+  <Card title="new_tracking.py" icon="code" href="/api/tracking">
+    Collects catch-and-shoot, pull-up, and tracking data from NBA.com
+  </Card>
+  <Card title="scrape_shooting.py" icon="download">
+    Shot zone and shot quality data scraper
+  </Card>
+</CardGroup>
+
+## Notes
+
+<Note>
+  - **Catch-and-shoot**: Shots taken within 2 seconds of receiving a pass
+  - **Pull-up**: Shots taken off the dribble
+  - **Shot Quality** metrics from pbpstats.com use expected points models
+  - Percentages in `catchshoot.csv` and `pullup.csv` are on **0-1 scale**
+  - Percentages in `shotzone.csv` are on **0-1 scale**
+</Note>
+
+<Warning>
+  The `shotzone.csv` file contains data from pbpstats.com which may use different player IDs than NBA.com. Cross-reference using player names when merging with other datasets.
+</Warning>

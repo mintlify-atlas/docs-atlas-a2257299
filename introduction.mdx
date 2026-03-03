@@ -1,0 +1,178 @@
+---
+title: Introduction
+description: A comprehensive NBA statistics data platform aggregating multi-source data from 2014-2025
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="Hero Dark"
+/>
+
+## Welcome to the NBA Statistics Data Platform
+
+This data platform aggregates comprehensive NBA statistics from multiple authoritative sources, providing historical and current season data covering the 2014-15 through 2024-25 NBA seasons. Built with Python, the platform combines web scraping, API integration, and automated data pipelines to deliver consistent, structured datasets for advanced basketball analytics.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running in minutes with installation and your first data collection
+  </Card>
+  <Card
+    title="Data Sources"
+    icon="database"
+    href="/data-sources"
+  >
+    Explore the three major data sources: NBA.com, Basketball Reference, and pbpstats
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/make-index"
+  >
+    Browse the complete collection of data extraction scripts and utilities
+  </Card>
+  <Card
+    title="Data Schema"
+    icon="table"
+    href="/schema/overview"
+  >
+    Understand the structure of output datasets and available metrics
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Multi-Source Data Aggregation
+
+The platform intelligently combines data from three complementary sources:
+
+- **NBA.com Stats API**: Official league statistics including tracking data, shooting metrics, and advanced analytics
+- **Basketball Reference**: Historical totals, per-possession stats, and player identification
+- **pbpstats.com API**: Play-by-play derived metrics, on/off data, and advanced possession statistics
+
+Each source provides unique data points that are merged using player and team identifiers to create comprehensive datasets.
+
+### Historical Coverage (2014-2025)
+
+Access 11+ seasons of NBA data organized by:
+
+- **Regular Season**: Complete data for all regular season games
+- **Playoffs**: Separate datasets for postseason performance
+- **Year-over-year structure**: Data organized in year-based directories (`2014/`, `2015/`, ..., `2025/`)
+
+### Comprehensive Statistical Categories
+
+<AccordionGroup>
+  <Accordion title="Player Tracking & Movement">
+    - Speed and distance metrics
+    - Touches and time of possession
+    - Drives and paint touches
+    - Hustle statistics (deflections, loose balls, screen assists)
+  </Accordion>
+
+  <Accordion title="Shooting & Scoring">
+    - Shot quality by defender distance (Very Tight, Tight, Open, Wide Open)
+    - Dribble-based shooting splits (0, 1, 2, 3-6, 7+ dribbles)
+    - Catch & shoot vs. pull-up shooting
+    - Shot zone frequency and efficiency
+  </Accordion>
+
+  <Accordion title="Passing & Playmaking">
+    - Assists by type (3PT, at-rim, mid-range)
+    - Potential assists and assist conversion rates
+    - Secondary assists
+    - Bad pass turnovers and steals
+  </Accordion>
+
+  <Accordion title="Defense">
+    - Opponent field goal percentage by distance
+    - Rim protection metrics (frequency, accuracy)
+    - Defensive matchup data
+    - Team defensive tracking
+  </Accordion>
+
+  <Accordion title="Contract & Salary Data">
+    - Player salaries by season
+    - Team cap holds and dead money
+    - Contract options (player/team)
+    - Cap space analysis
+  </Accordion>
+</AccordionGroup>
+
+### Automated Data Pipeline
+
+The platform includes Python scripts that:
+
+- Make authenticated API requests with proper headers
+- Respect rate limits with built-in delays
+- Handle pagination and multi-year data collection
+- Automatically merge new data with historical datasets
+- Generate unified master CSV files for easy analysis
+
+## Data Output Format
+
+All data is stored as CSV files with consistent schemas:
+
+```plaintext
+workspace/source/
+├── 2014/                    # Season directories
+│   ├── defense/
+│   ├── player_shooting/
+│   ├── tracking/
+│   └── playoffs/
+├── 2015/
+├── ...
+├── 2025/
+├── hustle.csv              # Master files (all seasons)
+├── passing.csv
+├── defense_master.csv
+├── player_shooting.csv
+└── tracking.csv
+```
+
+<Note>
+  Master CSV files contain consolidated data from all seasons, while year-specific directories contain individual season data.
+</Note>
+
+## Technology Stack
+
+The platform is built with:
+
+- **Python 3.x**: Core scripting language
+- **pandas 1.5.3**: Data manipulation and CSV operations
+- **requests 2.32.3**: HTTP requests to APIs
+- **BeautifulSoup4 4.12.3**: HTML parsing for web scraping
+- **nba_api 1.6.1**: Official NBA.com API wrapper
+- **plotly 5.23.0**: Data visualization (optional)
+
+## Use Cases
+
+This data platform supports:
+
+- **Player evaluation**: Compare players across multiple statistical dimensions
+- **Team analytics**: Analyze team offensive and defensive tendencies
+- **Historical trends**: Track how the game has evolved from 2014-2025
+- **Predictive modeling**: Build models using comprehensive feature sets
+- **Scouting reports**: Generate detailed performance profiles
+- **Contract analysis**: Evaluate player value relative to salary
+
+## Getting Started
+
+Ready to dive in? Head over to the [Quick Start Guide](/quickstart) to:
+
+1. Set up your Python environment
+2. Run your first data collection script
+3. Query and analyze the resulting CSV data
+
+<Card title="View on GitHub" icon="github" href="#">
+  Explore the source code and contribute to the project
+</Card>

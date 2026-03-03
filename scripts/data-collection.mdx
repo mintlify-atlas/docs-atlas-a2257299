@@ -1,0 +1,187 @@
+---
+title: Data Collection Architecture
+description: Overview of the automated data collection system for NBA statistics
+---
+
+## Collection Overview
+
+The NBA Statistics Data Platform employs an automated data collection architecture organized by season years. Scripts are scheduled to run daily, fetching data from multiple sources and organizing it into year-based directories.
+
+### Directory Structure
+
+Data is organized hierarchically by season:
+
+```
+source/
+├── 2014/
+│   ├── defense/
+│   ├── player_shooting/
+│   ├── tracking/
+│   └── playoffs/
+├── 2015/
+...
+├── 2025/
+│   ├── defense/
+│   ├── player_shooting/
+│   └── tracking/
+```
+
+Each season directory contains:
+- **defense/**: Defensive metrics (rim protection, DFG%, frequency stats)
+- **player_shooting/**: Shot quality data by defender distance
+- **tracking/**: NBA tracking stats (drives, touches, passes, catch & shoot)
+- **playoffs/**: Separate playoff versions of all datasets
+
+## Automation Workflow
+
+The entire collection process is orchestrated through `script.sh`, which runs sequentially:
+
+### Daily Execution Script
+
+```bash
+#!/bin/bash
+# Convert Jupyter notebooks to Python scripts
+jupyter nbconvert --to script *.ipynb
+
+# Execute collection scripts in sequence
+python player_shooting.py
+python scrape_shooting.py
+python misc.py
+python player_level.py
+
+python team_shooting.py
+python update_lebron.py
+python dribble.py
+python underground.py
+python hustle.py
+python new_tracking.py
+python dates.py
+python make_index2.py
+python salary2.py
+python price.py
+
+# Commit and push updates
+git add --all
+git commit -m 'Daily Update'
+git push origin master
+```
+
+<Steps>
+  <Step title="Script Conversion">
+    Converts any Jupyter notebooks (`.ipynb`) to executable Python scripts using `nbconvert`
+  </Step>
+  
+  <Step title="Data Collection">
+    Executes individual collection scripts in sequence:
+    - Player shooting metrics by defender distance
+    - Team shooting statistics  
+    - Tracking data (drives, touches, passes)
+    - Hustle stats (deflections, loose balls, charges)
+    - Defense metrics (rim protection, DFG%)
+    - Salary and contract information
+  </Step>
+  
+  <Step title="Index Generation">
+    Runs `make_index2.py` to create master player index with ID mappings (Basketball Reference → NBA.com)
+  </Step>
+  
+  <Step title="Version Control">
+    Automatically commits all updated CSV files and pushes to the remote repository
+  </Step>
+</Steps>
+
+## Data Distribution
+
+After collection, processed CSV files are distributed to consumer applications:
+
+```bash
+# Distribution script (copy.sh)
+WEB_APP_DIR="../web_app/data"
+DISCORD_DIR="../discord/data"
+
+# Copy master files to both destinations
+cp nba_salaries.csv $WEB_APP_DIR/
+cp index_master.csv $WEB_APP_DIR/
+cp hustle.csv $WEB_APP_DIR/
+cp player_shooting.csv $WEB_APP_DIR/
+# ... (50+ additional files)
+```
+
+### Distribution Targets
+
+<CardGroup cols={2}>
+  <Card title="Web Application" icon="browser">
+    Main web interface consuming all datasets for interactive visualizations
+  </Card>
+  <Card title="Discord Bot" icon="discord">
+    Subset of datasets for quick stat lookups via Discord commands
+  </Card>
+  <Card title="Player Sheets" icon="table">
+    Specialized lineups and advanced metrics module
+  </Card>
+</CardGroup>
+
+## Script Organization
+
+Scripts are categorized by data type:
+
+| Category | Scripts | Output Files |
+|----------|---------|-------------|
+| **Player Shooting** | `player_shooting.py`, `scrape_shooting.py`, `dribble.py` | `player_shooting.csv`, `dribbleshot.csv`, `shotzone.csv` |
+| **Defense** | `defense.py`, `organize_defense.py` | `dfg.csv`, `rimdfg.csv`, `rim_acc.csv`, `rimfreq.csv` |
+| **Tracking** | `new_tracking.py`, `passing.py`, `hustle.py` | `tracking.csv`, `passing.csv`, `hustle.csv` |
+| **Team Stats** | `team_shooting.py`, `team_average_scrape.py` | `team_shooting.csv`, `team_avg.csv` |
+| **Salary Data** | `salary_scrape.py`, `salary2.py` | `nba_salaries.csv`, `salary_spread.csv` |
+| **Player Index** | `make_index.py`, `make_index2.py` | `index_master.csv` |
+
+## Collection Frequency
+
+<Warning>
+Scripts are designed to run **daily during the NBA season**. Rate limiting and sleep delays are implemented to respect API usage policies.
+</Warning>
+
+- **Regular Season**: Daily updates (October - April)
+- **Playoffs**: Daily updates with `ps=True` parameter (April - June)
+- **Offseason**: Weekly updates for contract/roster changes (July - September)
+
+## Season Configuration
+
+Most scripts use a year-based loop configuration:
+
+```python
+# Regular season data collection
+for year in range(2024, 2026):  # Collects 2024-25 season
+    season = f"{year}-{str(year+1)[-2:]}"
+    # Fetch and process data...
+```
+
+The `ps` (playoffs) parameter toggles between regular season and playoff data:
+
+```python
+ps = False  # Regular season
+ps = True   # Playoffs
+```
+
+## Error Handling
+
+Scripts implement basic retry logic and data validation:
+
+```python
+try:
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+except requests.exceptions.RequestException as e:
+    print(f"Error fetching {url}: {e}")
+    continue  # Skip to next iteration
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Scraping Pipeline" icon="globe" href="/scripts/scraping-pipeline">
+    Deep dive into web scraping mechanics and API integrations
+  </Card>
+  <Card title="Data Processing" icon="gears" href="/scripts/data-processing">
+    Learn how raw data is transformed into analysis-ready datasets
+  </Card>
+</CardGroup>

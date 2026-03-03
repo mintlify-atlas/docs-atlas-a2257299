@@ -1,0 +1,167 @@
+---
+title: 'Make Index'
+description: 'Player indexing and scoring data collection scripts'
+---
+
+## Overview
+
+The Make Index scripts create and maintain the master player index, collecting basic scoring statistics and calculating True Shooting Percentage (TS%). Two versions exist:
+
+- **make_index.py** - Legacy version with manual scraping
+- **make_index2.py** - Modern refactored version with improved error handling
+
+## Data Sources
+
+- **Basketball Reference**: Player statistics (totals and per-possession)
+- **NBA API**: Player IDs and current roster data
+- **URLs**: `basketball-reference.com/leagues/NBA_{year}_totals.html` and `/per_poss.html`
+
+## Core Functions
+
+### pull_bref_data()
+
+Pulls player statistics from Basketball Reference.
+
+<ParamField path="totals" type="boolean" default="False">
+  If True, scrapes totals data. If False, scrapes per-possession data.
+</ParamField>
+
+**Returns**: `pd.DataFrame` with columns:
+- `player`, `url`, `team`, `year`, `G`, `MP`, `FGA`, `FG`, `3PA`, `3P`, `FTA`, `FT`, `PTS`
+
+```python
+# From make_index2.py:105
+def pull_bref_data(totals=False):
+    leagues = "playoffs" if config.PLAYOFFS_MODE else "leagues"
+    if totals:
+        url_pattern = f"https://www.basketball-reference.com/{leagues}/NBA_{{year}}_totals.html"
+    else:
+        url_pattern = f"https://www.basketball-reference.com/{leagues}/NBA_{{year}}_per_poss.html"
+```
+
+### process_player_ids()
+
+Matches Basketball Reference IDs to NBA API IDs.
+
+<ParamField path="df" type="pd.DataFrame" required>
+  DataFrame containing player data with URLs
+</ParamField>
+
+<ParamField path="master_df" type="pd.DataFrame" required>
+  Master index DataFrame with existing ID mappings
+</ParamField>
+
+**Returns**: DataFrame with added `bref_id`, `nba_id`, and `team_id` columns
+
+```python
+# From make_index2.py:204
+def process_player_ids(df, master_df):
+    # Extract Basketball Reference IDs
+    df['bref_id'] = df['url'].str.split('/', expand=True)[5].str.split('.', expand=True)[0]
+    
+    # Map IDs to dataframe
+    match_dict = dict(zip(master_df['bref_id'], master_df['nba_id']))
+    df['nba_id'] = df['bref_id'].map(match_dict)
+```
+
+### calculate_true_shooting()
+
+Calculates True Shooting Percentage using the formula: `TS% = PTS / (2 * (FGA + 0.44 * FTA)) * 100`
+
+<ParamField path="df" type="pd.DataFrame" required>
+  DataFrame with PTS, FGA, and FTA columns
+</ParamField>
+
+**Returns**: DataFrame with added `TS%` column
+
+```python
+# From make_index2.py:269
+df['TS%'] = (df['PTS'] / (2 * (df['FGA'] + 0.44 * df['FTA']))) * 100
+df.replace([np.inf, -np.inf], 0, inplace=True)
+df.loc[df['TS%'] > 150, 'TS%'] = 0  # Clean extreme values
+```
+
+## Configuration
+
+Set at the top of `make_index2.py`:
+
+<ParamField path="PLAYOFFS_MODE" type="boolean" default="True">
+  Toggle between playoffs and regular season data
+</ParamField>
+
+<ParamField path="CURRENT_YEAR" type="integer" default="2025">
+  Year to scrape (represents 2024-25 season)
+</ParamField>
+
+<ParamField path="CURRENT_SEASON" type="string" default="2024-25">
+  Season format for NBA API
+</ParamField>
+
+```python
+# From make_index2.py:15-20
+class Config:
+    PLAYOFFS_MODE = True
+    CURRENT_YEAR = 2025
+    CURRENT_SEASON = "2024-25"
+```
+
+## Output Files
+
+<ResponseField name="index_master.csv / index_master_ps.csv" type="CSV">
+  Master player index with ID mappings
+  
+  **Columns**: `player`, `url`, `year`, `team`, `bref_id`, `nba_id`, `team_id`
+</ResponseField>
+
+<ResponseField name="scoring.csv / scoring_ps.csv" type="CSV">
+  Per-possession scoring statistics
+  
+  **Columns**: `Player`, `TS%`, `PTS`, `MP`, `Tm`, `G`, `year`, `nba_id`
+</ResponseField>
+
+<ResponseField name="totals.csv / totals_ps.csv" type="CSV">
+  Total scoring statistics with shooting attempts
+  
+  **Columns**: `Player`, `TS%`, `PTS`, `MP`, `Tm`, `G`, `FTA`, `FGA`, `year`, `nba_id`
+</ResponseField>
+
+<ResponseField name="games.csv / ps_games.csv" type="CSV">
+  Games played data exported to other modules
+  
+  **Columns**: `nba_id`, `Player`, `year`, `G`
+</ResponseField>
+
+## Usage Example
+
+```python
+# Set configuration
+class Config:
+    PLAYOFFS_MODE = False  # Regular season
+    CURRENT_YEAR = 2025
+    CURRENT_SEASON = "2024-25"
+
+config = Config()
+
+# Run the main pipeline
+if __name__ == "__main__":
+    main()
+```
+
+**Output**:
+```
+Running in REGULAR SEASON mode
+Fetching data from: https://www.basketball-reference.com/leagues/NBA_2025_totals.html
+Successfully processed 612 players for 2025 (totals)
+Found 15 players without NBA IDs
+Fetching player data from NBA API...
+Found 12 additional IDs from the NBA API
+```
+
+## Key Features
+
+- **Dynamic header mapping**: Automatically detects column positions from Basketball Reference HTML
+- **ID reconciliation**: Matches players across Basketball Reference and NBA API
+- **Playoff/regular season toggle**: Single `ps` flag controls data source
+- **Hardcoded ID fallbacks**: Manual dictionary for players missing from APIs
+- **TS% calculation**: Industry-standard true shooting percentage formula
+- **Data validation**: Removes extreme TS% values (>150%) and handles inf/NaN

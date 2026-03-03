@@ -1,0 +1,524 @@
+---
+title: 'Team Statistics Schema'
+description: 'Complete field reference for team-level datasets'
+---
+
+## Overview
+
+Team-level statistics aggregate performance metrics at the team level. These datasets are useful for analyzing team strategies, tendencies, and overall effectiveness.
+
+## Core Team Files
+
+### team_shooting.csv
+
+Team shooting statistics by shot coverage type.
+
+**File**: `team_shooting.csv` / `team_shooting_ps.csv`
+
+<ResponseField name="TEAM" type="string" required>
+  Team abbreviation (e.g., "LAL", "BOS", "GSW")
+</ResponseField>
+
+<ResponseField name="TEAMNAME" type="string">
+  Full team name (e.g., "Los Angeles Lakers")
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="shot_coverage" type="string" required>
+  Shot coverage category:
+  - `Open`: Defender 4+ feet away
+  - `Tight`: Defender 2-4 feet away  
+  - `Very Tight`: Defender 0-2 feet away
+  - `Wide Open`: Defender 6+ feet away
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Total games in dataset
+</ResponseField>
+
+<ResponseField name="Freq%" type="float">
+  Frequency percentage - what portion of team's shots fall into this category
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goals attempted
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-100 scale)
+</ResponseField>
+
+<ResponseField name="eFG%" type="float">
+  Effective field goal percentage: `(FGM + 0.5 * 3PM) / FGA`
+</ResponseField>
+
+<ResponseField name="2FG Freq%" type="float">
+  Frequency of 2-point attempts
+</ResponseField>
+
+<ResponseField name="2FGM" type="integer">
+  2-point field goals made
+</ResponseField>
+
+<ResponseField name="2FGA" type="integer">
+  2-point field goals attempted
+</ResponseField>
+
+<ResponseField name="2FG%" type="float">
+  2-point field goal percentage
+</ResponseField>
+
+<ResponseField name="3FG Freq%" type="float">
+  Frequency of 3-point attempts
+</ResponseField>
+
+<ResponseField name="3PM" type="integer">
+  3-pointers made
+</ResponseField>
+
+<ResponseField name="3PA" type="integer">
+  3-pointers attempted
+</ResponseField>
+
+<ResponseField name="3P%" type="float">
+  3-point percentage
+</ResponseField>
+
+**Example**:
+```csv
+TEAM,GP,G,Freq%,FGM,FGA,FG%,eFG%,2FG Freq%,2FGM,2FGA,2FG%,3FG Freq%,3PM,3PA,3P%,shot_coverage,year,TEAMNAME
+ATL,82,82,45.2,1850,3987,46.4,48.1,35.6,1420,3140,45.2,9.6,430,847,50.8,wide_open,2014,Atlanta Hawks
+```
+
+### team_shotzone.csv
+
+Team shooting performance by court zone.
+
+**File**: `team_shotzone.csv` / `team_shotzone_ps.csv`
+
+<ResponseField name="Name" type="string" required>
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="EntityId" type="integer" required>
+  Team identifier
+</ResponseField>
+
+<ResponseField name="TeamId" type="integer">
+  Team ID (same as EntityId)
+</ResponseField>
+
+<ResponseField name="TeamAbbreviation" type="string">
+  Team abbreviation (same as Name)
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="GamesPlayed" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="OffPoss" type="integer">
+  Offensive possessions
+</ResponseField>
+
+<ResponseField name="DefPoss" type="integer">
+  Defensive possessions
+</ResponseField>
+
+<ResponseField name="Points" type="integer">
+  Total points scored
+</ResponseField>
+
+<ResponseField name="FtPoints" type="integer">
+  Points from free throws
+</ResponseField>
+
+<ResponseField name="FTA" type="integer">
+  Free throw attempts
+</ResponseField>
+
+<ResponseField name="AtRimFGA" type="integer">
+  Field goal attempts at the rim
+</ResponseField>
+
+<ResponseField name="AtRimFGM" type="integer">
+  Field goals made at the rim
+</ResponseField>
+
+<ResponseField name="AtRimAccuracy" type="float">
+  Shooting accuracy at the rim (percentage)
+</ResponseField>
+
+<ResponseField name="ShortMidRangeFGA" type="integer">
+  Short mid-range field goal attempts
+</ResponseField>
+
+<ResponseField name="ShortMidRangeFGM" type="integer">
+  Short mid-range field goals made
+</ResponseField>
+
+<ResponseField name="ShortMidRangeAccuracy" type="float">
+  Short mid-range accuracy percentage
+</ResponseField>
+
+<ResponseField name="ShortMidRangeFrequency" type="float">
+  Frequency of short mid-range attempts
+</ResponseField>
+
+<ResponseField name="LongMidRangeFGA" type="integer">
+  Long mid-range field goal attempts
+</ResponseField>
+
+<ResponseField name="LongMidRangeFGM" type="integer">
+  Long mid-range field goals made
+</ResponseField>
+
+<ResponseField name="FG2A" type="integer">
+  Total 2-point attempts
+</ResponseField>
+
+<ResponseField name="FG2M" type="integer">
+  Total 2-point makes
+</ResponseField>
+
+<ResponseField name="FG3A" type="integer">
+  Total 3-point attempts
+</ResponseField>
+
+<ResponseField name="NonHeaveFg3Pct" type="float">
+  3-point percentage excluding heaves
+</ResponseField>
+
+<ResponseField name="NonHeaveArc3FGA" type="integer">
+  Non-heave 3-point attempts from the arc
+</ResponseField>
+
+<ResponseField name="NonHeaveArc3FGM" type="integer">
+  Non-heave 3-point makes from the arc
+</ResponseField>
+
+<ResponseField name="HeaveAttempts" type="integer">
+  Number of heave attempts (end-of-clock desperation shots)
+</ResponseField>
+
+<ResponseField name="Corner3FGA" type="integer">
+  Corner 3-point attempts
+</ResponseField>
+
+<ResponseField name="Corner3FGM" type="integer">
+  Corner 3-point makes
+</ResponseField>
+
+<ResponseField name="TsPct" type="float">
+  True shooting percentage
+</ResponseField>
+
+<ResponseField name="EfgPct" type="float">
+  Effective field goal percentage
+</ResponseField>
+
+<ResponseField name="SecondChanceEfgPct" type="float">
+  eFG% on second chance opportunities
+</ResponseField>
+
+<ResponseField name="PenaltyEfgPct" type="float">
+  eFG% in the penalty (bonus free throw situation)
+</ResponseField>
+
+<ResponseField name="SecondChanceTsPct" type="float">
+  True shooting % on second chance opportunities
+</ResponseField>
+
+<ResponseField name="PenaltyTsPct" type="float">
+  True shooting % in the penalty
+</ResponseField>
+
+<ResponseField name="SecondChanceShotQualityAvg" type="float">
+  Average shot quality on second chance attempts
+</ResponseField>
+
+<ResponseField name="PenaltyShotQualityAvg" type="float">
+  Average shot quality in penalty situations
+</ResponseField>
+
+<ResponseField name="ShotQualityAvg" type="float">
+  Overall average shot quality
+</ResponseField>
+
+### teamplay.csv
+
+Team play-type statistics (offensive).
+
+**File**: `teamplay.csv` / `teamplay_p.csv`
+
+<ResponseField name="Team" type="string" required>
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="full_name" type="string">
+  Full team name
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="playtype" type="string" required>
+  Type of offensive play:
+  - `Transition`: Fast break plays
+  - `Isolation`: 1-on-1 isolation plays
+  - `PRBallHandler`: Pick and roll ball handler
+  - `PRRollMan`: Pick and roll roll man
+  - `Postup`: Post-up plays
+  - `Spotup`: Spot-up shooting
+  - `Handoff`: Handoff plays
+  - `Cut`: Cutting to the basket
+  - `OffScreen`: Off-ball screens
+  - `OffRebound`: Offensive rebound putbacks
+  - `Misc`: Miscellaneous plays
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="POSS" type="integer">
+  Total possessions of this play type
+</ResponseField>
+
+<ResponseField name="FREQ%" type="float">
+  Frequency percentage - portion of team's plays that are this type
+</ResponseField>
+
+<ResponseField name="PPP" type="float">
+  Points per possession for this play type
+</ResponseField>
+
+<ResponseField name="Points" type="integer">
+  Total points scored on this play type
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goals attempted
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage
+</ResponseField>
+
+<ResponseField name="EFG%" type="float">
+  Effective field goal percentage
+</ResponseField>
+
+<ResponseField name="FTFREQ%" type="float">
+  Free throw frequency - possessions ending in free throws
+</ResponseField>
+
+<ResponseField name="TOVFREQ%" type="float">
+  Turnover frequency - possessions ending in turnovers
+</ResponseField>
+
+<ResponseField name="SFFREQ%" type="float">
+  Shooting foul frequency
+</ResponseField>
+
+<ResponseField name="AND ONEFREQ%" type="float">
+  And-one frequency - made shot with foul
+</ResponseField>
+
+<ResponseField name="SCOREFREQ%" type="float">
+  Scoring frequency - possessions resulting in points
+</ResponseField>
+
+<ResponseField name="PERCENTILE" type="float">
+  Percentile rank among all teams for this play type
+</ResponseField>
+
+**Example**:
+```csv
+Team,GP,POSS,FREQ%,PPP,Points,FGM,FGA,FG%,EFG%,FTFREQ%,TOVFREQ%,SFFREQ%,AND ONEFREQ%,SCOREFREQ%,PERCENTILE,year,playtype,full_name
+ATL,82,1456,18.5,1.12,1631,589,1098,53.6,55.2,12.4,8.9,10.1,4.2,58.1,76.2,2014,Transition,Atlanta Hawks
+```
+
+### opp_team_shooting.csv
+
+Opponent team shooting statistics (defensive perspective).
+
+**File**: `opp_team_shooting.csv` / `opp_team_shooting_ps.csv`
+
+Schema is identical to `team_shooting.csv`, but represents the shooting performance **allowed** by the defense rather than offensive shooting.
+
+<ResponseField name="TEAM" type="string" required>
+  Team abbreviation (the defensive team)
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="shot_coverage" type="string" required>
+  Shot coverage provided by defense
+</ResponseField>
+
+All other fields match `team_shooting.csv` schema, representing opponent shooting performance.
+
+### team_shotzone_vs.csv
+
+Team shooting performance by zone (defensive/opponent view).
+
+**File**: `team_shotzone_vs.csv` / `team_shotzone_vs_ps.csv`
+
+Schema matches `team_shotzone.csv`, representing opponent shooting performance by zone that the team **allowed**.
+
+## Usage Examples
+
+### Analyzing Team 3-Point Tendencies
+
+```python
+import pandas as pd
+
+# Load team shooting data
+team_shooting = pd.read_csv('team_shooting.csv')
+
+# Filter for 2023 season and wide open 3s
+wide_open_2023 = team_shooting[
+    (team_shooting['year'] == 2023) &
+    (team_shooting['shot_coverage'] == 'Wide Open')
+]
+
+# Calculate 3-point volume and efficiency
+wide_open_2023['3PA_per_game'] = wide_open_2023['3PA'] / wide_open_2023['GP']
+
+print(wide_open_2023[['TEAM', '3PA_per_game', '3P%', 'Freq%']].sort_values('3PA_per_game', ascending=False))
+```
+
+### Comparing Offensive and Defensive Efficiency by Play Type
+
+```python
+# Load offensive and defensive play-type data
+team_offense = pd.read_csv('teamplay.csv')
+team_defense = pd.read_csv('teamplayd.csv')
+
+# Filter for transition plays in 2023
+transition_off = team_offense[
+    (team_offense['year'] == 2023) &
+    (team_offense['playtype'] == 'Transition')
+]
+
+transition_def = team_defense[
+    (team_defense['year'] == 2023) &
+    (team_defense['playtype'] == 'Transition')
+]
+
+# Merge offensive and defensive stats
+transition = pd.merge(
+    transition_off[['Team', 'PPP', 'FREQ%']],
+    transition_def[['Team', 'PPP', 'FREQ%']],
+    on='Team',
+    suffixes=('_off', '_def')
+)
+
+# Calculate net efficiency
+transition['net_ppp'] = transition['PPP_off'] - transition['PPP_def']
+
+print(transition.sort_values('net_ppp', ascending=False))
+```
+
+### Shot Distribution Analysis
+
+```python
+# Load team shot zone data
+shot_zones = pd.read_csv('team_shotzone.csv')
+
+# Calculate shot distribution for each team
+shot_zones['rim_freq'] = shot_zones['AtRimFGA'] / (shot_zones['FG2A'] + shot_zones['FG3A'])
+shot_zones['three_freq'] = shot_zones['FG3A'] / (shot_zones['FG2A'] + shot_zones['FG3A'])
+shot_zones['mid_freq'] = (shot_zones['ShortMidRangeFGA'] + shot_zones['LongMidRangeFGA']) / (shot_zones['FG2A'] + shot_zones['FG3A'])
+
+# Filter for 2023 and compare modern vs traditional shot selection
+shot_dist_2023 = shot_zones[shot_zones['year'] == 2023]
+
+print(shot_dist_2023[['Name', 'rim_freq', 'three_freq', 'mid_freq', 'TsPct']].sort_values('TsPct', ascending=False))
+```
+
+### Defensive Shot Quality Allowed
+
+```python
+# Load opponent shooting data
+opp_shooting = pd.read_csv('opp_team_shooting.csv')
+
+# Pivot to compare coverage types
+coverage_pivot = opp_shooting.pivot_table(
+    index=['TEAM', 'year'],
+    columns='shot_coverage',
+    values=['FGA', 'FG%', 'Freq%']
+)
+
+# Filter for 2023 and calculate defensive quality
+defense_2023 = coverage_pivot[coverage_pivot.index.get_level_values('year') == 2023]
+
+# Teams that force the most contested shots
+print(defense_2023.sort_values(('Freq%', 'Very Tight'), ascending=False))
+```
+
+### Play-Type Efficiency Rankings
+
+```python
+# Load team play-type data
+teamplay = pd.read_csv('teamplay.csv')
+
+# Find most efficient play types by team
+efficient_plays = teamplay[
+    (teamplay['year'] == 2023) &
+    (teamplay['POSS'] >= 100)  # Minimum sample size
+].sort_values(['Team', 'PPP'], ascending=[True, False])
+
+# Get top play type for each team
+top_play_by_team = efficient_plays.groupby('Team').first().reset_index()
+
+print(top_play_by_team[['Team', 'playtype', 'PPP', 'FREQ%', 'SCOREFREQ%']])
+```
+
+## Relationship to Player Data
+
+Team statistics can be connected to player statistics through:
+
+- **Team abbreviation**: Join on `TEAM` or `Team` field
+- **Season**: Join on `year` field
+- **Aggregation**: Sum player stats to validate team totals
+
+```python
+# Example: Verify team 3-point totals from player data
+player_shooting = pd.read_csv('player_shooting.csv')
+
+# Aggregate player 3PA by team
+player_team_3pa = player_shooting[
+    player_shooting['year'] == 2023
+].groupby('TEAM')['3PA'].sum().reset_index()
+
+# Compare to team totals
+team_totals = team_shooting[
+    team_shooting['year'] == 2023
+].groupby('TEAM')['3PA'].sum().reset_index()
+
+comparison = pd.merge(player_team_3pa, team_totals, on='TEAM', suffixes=('_player', '_team'))
+print(comparison)
+```

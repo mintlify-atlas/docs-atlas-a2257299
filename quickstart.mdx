@@ -1,80 +1,346 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get up and running with the NBA Statistics Data Platform in minutes
 ---
 
-## Get started in three steps
+## Installation
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the project to your local machine:
 
-### Step 1: Set up your local environment
+    ```bash
+    git clone <repository-url>
+    cd workspace/source
+    ```
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+  <Step title="Install Dependencies">
+    Install required Python packages using pip:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    **Key dependencies:**
+    - `pandas==1.5.3` - Data manipulation
+    - `requests==2.32.3` - HTTP requests
+    - `beautifulsoup4==4.12.3` - Web scraping
+    - `nba_api==1.6.1` - NBA.com API wrapper
+    - `plotly==5.23.0` - Visualization (optional)
+  </Step>
+
+  <Step title="Verify Installation">
+    Test that all packages are installed correctly:
+
+    ```python
+    import pandas as pd
+    import requests
+    from bs4 import BeautifulSoup
+    from nba_api.stats.endpoints import commonallplayers
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    print("All dependencies installed successfully!")
+    ```
+  </Step>
+</Steps>
+
+## Your First Data Collection
+
+Let's collect hustle statistics for the 2024-25 season.
+
+### Running the Hustle Stats Script
+
+<CodeGroup>
+```python hustle.py
+import pandas as pd
+import requests
+
+def get_hustle(year, ps=False):
+    """Fetch hustle statistics from NBA.com Stats API.
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    Args:
+        year: Season ending year (e.g., 2025 for 2024-25 season)
+        ps: Boolean, True for playoffs, False for regular season
+    """
+    stype = "Playoffs" if ps else "Regular%20Season"
+    season = str(year-1) + '-' + str(year)[-2:]
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    # NBA.com Stats API endpoint
+    url = (
+        'https://stats.nba.com/stats/leaguehustlestatsplayer'
+        '?College=&Conference=&Country=&DateFrom=&DateTo=&Division='
+        '&DraftPick=&DraftYear=&GameScope=&Height=&ISTRound='
+        '&LastNGames=0&LeagueID=00&Location=&Month=0'
+        '&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N'
+        f'&PerMode=Totals&PlayerExperience=&PlayerPosition='
+        f'&PlusMinus=N&Rank=N&Season={season}&SeasonSegment='
+        f'&SeasonType={stype}&TeamID=0&VsConference=&VsDivision=&Weight='
+    )
+    
+    # Required headers for NBA.com API
+    headers = {
+        "Host": "stats.nba.com",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Referer": "https://stats.nba.com/"
+    }
+    
+    # Make the request
+    response = requests.get(url, headers=headers)
+    json_data = response.json()
+    
+    # Extract data from JSON response
+    data = json_data["resultSets"][0]["rowSet"]
+    columns = json_data["resultSets"][0]["headers"]
+    
+    # Create DataFrame
+    df = pd.DataFrame(data, columns=columns)
+    df['year'] = year
+    
+    return df
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+# Collect 2024-25 regular season hustle stats
+df = get_hustle(2025, ps=False)
+print(df.head())
+print(f"\nCollected {len(df)} players")
+print(f"\nColumns: {df.columns.tolist()}")
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+# Save to CSV
+df.to_csv('hustle_2025.csv', index=False)
+```
 
-### Step 3: Go live
+```python Output
+   PLAYER_ID      PLAYER_NAME TEAM_ID TEAM_ABBREVIATION  ... SCREEN_ASSISTS  year
+0    1630162    Precious Achiuwa  1610612752              NYK  ...             45  2025
+1    1628389      Steven Adams    1610612740              NOP  ...            156  2025
+2    1629651       Bam Adebayo    1610612748              MIA  ...            198  2025
+...
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+Collected 542 players
 
-## Next steps
+Columns: ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ID', 'TEAM_ABBREVIATION', 'AGE', 'GP', 'MIN', 
+          'CONTESTED_SHOTS', 'CONTESTED_SHOTS_2PT', 'CONTESTED_SHOTS_3PT', 'DEFLECTIONS', 
+          'CHARGES_DRAWN', 'SCREEN_ASSISTS', 'SCREEN_AST_PTS', 'OFF_LOOSE_BALLS_RECOVERED', 
+          'DEF_LOOSE_BALLS_RECOVERED', 'LOOSE_BALLS_RECOVERED', 'OFF_BOXOUTS', 'DEF_BOXOUTS', 
+          'BOX_OUTS', 'year']
+```
+</CodeGroup>
 
-Now that you have your docs running, explore these key features:
+<Check>
+  You've successfully collected your first dataset! The CSV file contains hustle metrics like deflections, charges drawn, screen assists, and loose balls recovered.
+</Check>
+
+## Understanding the Data
+
+### Data Structure
+
+Each script outputs CSV files with a consistent structure:
+
+| Field | Description | Type |
+|-------|-------------|------|
+| `PLAYER_ID` | Unique NBA player identifier | Integer |
+| `PLAYER_NAME` | Player's full name | String |
+| `TEAM_ABBREVIATION` | Team acronym (e.g., LAL, BOS) | String |
+| `GP` | Games played | Integer |
+| `year` | Season ending year | Integer |
+| *[stat columns]* | Various statistics | Float/Integer |
+
+### Querying the Data
+
+Once you have CSV files, you can query them with pandas:
+
+<CodeGroup>
+```python Filter Top Players
+import pandas as pd
+
+# Load the data
+df = pd.read_csv('hustle_2025.csv')
+
+# Find players with most deflections (min 20 games)
+top_deflections = df[df.GP >= 20].nlargest(10, 'DEFLECTIONS')
+print(top_deflections[['PLAYER_NAME', 'TEAM_ABBREVIATION', 'GP', 'DEFLECTIONS']])
+```
+
+```python Compare Teams
+import pandas as pd
+
+df = pd.read_csv('hustle_2025.csv')
+
+# Aggregate by team
+team_hustle = df.groupby('TEAM_ABBREVIATION').agg({
+    'DEFLECTIONS': 'sum',
+    'CHARGES_DRAWN': 'sum',
+    'LOOSE_BALLS_RECOVERED': 'sum',
+    'SCREEN_ASSISTS': 'sum'
+}).reset_index()
+
+print(team_hustle.sort_values('DEFLECTIONS', ascending=False))
+```
+
+```python Historical Trends
+import pandas as pd
+
+# Load multiple years
+frames = []
+for year in range(2020, 2026):
+    df = pd.read_csv(f'{year}/hustle.csv')
+    frames.append(df)
+
+all_years = pd.concat(frames)
+
+# Track league-wide deflection trends
+yearly_avg = all_years.groupby('year')['DEFLECTIONS'].mean()
+print(yearly_avg)
+```
+</CodeGroup>
+
+## Running Other Data Collection Scripts
+
+The platform includes scripts for various data types. Here are common examples:
+
+### Defense Statistics
+
+Collect opponent shooting data and rim protection metrics:
+
+```python
+python defense.py
+```
+
+This generates:
+- `dfg.csv` - Overall opponent field goal percentage
+- `rimdfg.csv` - Rim defense (shots within 6 feet)
+- `rim_acc.csv` - At-rim accuracy allowed
+- `rimfreq.csv` - At-rim shot frequency faced
+
+### Player Shooting by Defender Distance
+
+Collect shooting splits based on closest defender:
+
+```python
+python player_shooting.py
+```
+
+Outputs four CSV files:
+- `very_tight.csv` - 0-2 feet defender distance
+- `tight.csv` - 2-4 feet
+- `open.csv` - 4-6 feet  
+- `wide_open.csv` - 6+ feet
+
+### Passing & Playmaking
+
+Collect comprehensive passing statistics:
+
+```python
+python passing.py
+```
+
+<Info>
+  The passing script merges data from **pbpstats.com API** and **NBA.com tracking endpoints** to provide complete playmaking metrics.
+</Info>
+
+### Dribble-Based Shooting
+
+Analyze shooting by number of dribbles before the shot:
+
+```python
+python dribble.py
+```
+
+Creates dribble shooting splits (0, 1, 2, 3-6, 7+ dribbles) for both:
+- Overall shooting (`dribbleshot.csv`)
+- Catch & shoot vs. pull-ups (`jumpdribble.csv`)
+
+## Working with Master Files
+
+Master CSV files contain all seasons combined for easy multi-year analysis:
+
+```python
+import pandas as pd
+
+# Load master file with all seasons
+all_passing = pd.read_csv('passing.csv')
+
+# Filter to specific player across all years
+luka_passing = all_passing[
+    all_passing['Name'].str.contains('Luka Doncic', case=False)
+]
+
+print(luka_passing[['Name', 'year', 'Assists', 'Potential Assists', 
+                     'High Value Assist %', 'on-ball-time%']])
+```
+
+## Directory Structure
+
+Understand where data is stored:
+
+```plaintext
+workspace/source/
+├── requirements.txt           # Python dependencies
+├── defense.py                # Defense data collection
+├── hustle.py                 # Hustle stats collection  
+├── passing.py                # Passing data collection
+├── player_shooting.py        # Shooting by defender distance
+├── dribble.py                # Dribble-based shooting
+├── make_index.py             # Player/team ID mapping
+│
+├── 2024/                     # Year-specific directories
+│   ├── defense/
+│   │   ├── dfg.csv
+│   │   ├── rimdfg.csv
+│   │   └── ...
+│   ├── player_shooting/
+│   │   ├── very_tight.csv
+│   │   ├── tight.csv
+│   │   └── ...
+│   └── playoffs/
+│       └── ...
+│
+├── hustle.csv                # Master files (all years)
+├── passing.csv
+├── defense_master.csv
+└── index_master.csv          # Player ID mappings
+```
+
+## Rate Limiting & Best Practices
+
+<Warning>
+  Always respect API rate limits to avoid being blocked:
+  
+  - **NBA.com Stats API**: Add 1-3 second delays between requests
+  - **Basketball Reference**: Use 2-3 second delays and proper User-Agent headers
+  - **pbpstats.com**: Implement 3-second delays for team-level loops
+</Warning>
+
+Example rate limiting:
+
+```python
+import time
+
+for year in range(2014, 2026):
+    df = get_hustle(year)
+    df.to_csv(f'{year}/hustle.csv', index=False)
+    
+    # Delay between requests
+    time.sleep(3)
+    print(f'Completed {year}')
+```
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Explore Data Sources" icon="database" href="/data-sources">
+    Learn about the three data sources and what each provides
+  </Card>
+  <Card title="Data Schema Reference" icon="table" href="/schema/overview">
+    Browse complete field definitions for all datasets
+  </Card>
+  <Card title="Player Statistics" icon="user" href="/data/player-statistics">
+    Explore player-level data collections
+  </Card>
+  <Card title="API Scripts" icon="code" href="/api/make-index">
+    Full documentation of all collection scripts
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,276 @@
+---
+title: 'Hustle'
+description: 'Hustle stats including deflections, loose balls, screens, and charges'
+---
+
+## Overview
+
+The `hustle.py` script collects hustle statistics from NBA.com's tracking data, including deflections, loose balls recovered, screen assists, charges drawn, and box outs. It also merges player tracking movement data (distance, speed) and possession counts.
+
+## Data Sources
+
+- **NBA.com Hustle Stats**: `leaguehustlestatsplayer` endpoint
+- **NBA.com Player Tracking**: `leaguedashptstats` endpoint (SpeedDistance measure)
+- **NBA.com Advanced Stats**: `leaguedashplayerstats` endpoint (possessions)
+
+## Core Function
+
+### get_hustle()
+
+Collects hustle statistics for a single season.
+
+<ParamField path="year" type="integer" required>
+  Year to collect data for (e.g., 2025 for 2024-25 season)
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Playoffs mode toggle
+</ParamField>
+
+**Returns**: `pd.DataFrame` with hustle stats, speed/distance tracking, and possession counts merged
+
+```python
+# From hustle.py:10
+def get_hustle(year, ps=False):
+    stype = "Playoffs" if ps else "Regular%20Season"
+    season = str(year-1) + '-' + str(year)[-2:]
+    
+    # Hustle stats endpoint
+    url1 = f'https://stats.nba.com/stats/leaguehustlestatsplayer?Season={season}&SeasonType={stype}&PerMode=Totals'
+    
+    # Speed/Distance tracking endpoint
+    url2 = f'https://stats.nba.com/stats/leaguedashptstats?PlayerOrTeam=Player&PtMeasureType=SpeedDistance&Season={season}&SeasonType={stype}'
+    
+    # Advanced stats for possessions
+    url3 = f'https://stats.nba.com/stats/leaguedashplayerstats?MeasureType=Advanced&Season={season}&SeasonType={stype}'
+```
+
+### hustle_master()
+
+Creates or updates the master hustle stats file.
+
+<ParamField path="ps" type="boolean" default="False">
+  If True, processes playoff data
+</ParamField>
+
+**Returns**: Combined DataFrame with all historical hustle data
+
+```python
+# From hustle.py:94
+def hustle_master(ps=False):
+    trail = '_ps' if ps else ''
+    data_rs = []
+    
+    # Load existing data
+    old_df = pd.read_csv('hustle.csv')
+    old_df = old_df[old_df.year < 2025]
+    data_rs.append(old_df)
+    
+    # Add new year
+    for year in range(2025, 2026):
+        df = get_hustle(year, ps=ps)
+        data_rs.append(df)
+    
+    hustle = pd.concat(data_rs)
+    hustle.to_csv('hustle' + trail + '.csv', index=False)
+    return hustle
+```
+
+## Statistics Collected
+
+### Hustle Stats
+
+<ResponseField name="PLAYER_ID" type="integer">
+  NBA player ID
+</ResponseField>
+
+<ResponseField name="PLAYER_NAME" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="TEAM_ABBREVIATION" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="DEFLECTIONS" type="integer">
+  Number of deflections (tipped passes or loose balls)
+</ResponseField>
+
+<ResponseField name="LOOSE_BALLS_RECOVERED" type="integer">
+  Loose balls recovered
+</ResponseField>
+
+<ResponseField name="CHARGES_DRAWN" type="integer">
+  Offensive fouls drawn by taking a charge
+</ResponseField>
+
+<ResponseField name="SCREEN_ASSISTS" type="integer">
+  Screens that directly lead to a made field goal
+</ResponseField>
+
+<ResponseField name="SCREEN_AST_PTS" type="integer">
+  Points generated from screen assists
+</ResponseField>
+
+<ResponseField name="OFF_BOXOUTS" type="integer">
+  Offensive box outs
+</ResponseField>
+
+<ResponseField name="DEF_BOXOUTS" type="integer">
+  Defensive box outs
+</ResponseField>
+
+<ResponseField name="BOX_OUT_PLAYER_TEAM_REBS" type="integer">
+  Team rebounds resulting from player's box out
+</ResponseField>
+
+<ResponseField name="BOX_OUT_PLAYER_REBS" type="integer">
+  Player rebounds resulting from their own box out
+</ResponseField>
+
+<ResponseField name="CONTESTED_SHOTS" type="integer">
+  Number of shots contested
+</ResponseField>
+
+<ResponseField name="CONTESTED_SHOTS_2PT" type="integer">
+  Two-point shots contested
+</ResponseField>
+
+<ResponseField name="CONTESTED_SHOTS_3PT" type="integer">
+  Three-point shots contested
+</ResponseField>
+
+### Speed/Distance Tracking
+
+<ResponseField name="DIST_MILES" type="float">
+  Total distance traveled in miles
+</ResponseField>
+
+<ResponseField name="DIST_MILES_OFF" type="float">
+  Distance traveled on offense (miles)
+</ResponseField>
+
+<ResponseField name="DIST_MILES_DEF" type="float">
+  Distance traveled on defense (miles)
+</ResponseField>
+
+<ResponseField name="AVG_SPEED" type="float">
+  Average speed (miles per hour)
+</ResponseField>
+
+<ResponseField name="AVG_SPEED_OFF" type="float">
+  Average speed on offense (mph)
+</ResponseField>
+
+<ResponseField name="AVG_SPEED_DEF" type="float">
+  Average speed on defense (mph)
+</ResponseField>
+
+### Advanced Stats
+
+<ResponseField name="POSS" type="integer">
+  Total possessions played
+</ResponseField>
+
+<ResponseField name="MIN" type="float">
+  Minutes played
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+## Data Merging Process
+
+The script merges three separate API calls:
+
+```python
+# From hustle.py:58-88
+# 1. Get hustle stats
+json = requests.get(url, headers=headers).json()
+df = pd.DataFrame(data, columns=columns)
+
+# 2. Get speed/distance tracking
+json2 = requests.get(url2, headers=headers).json()
+df2 = pd.DataFrame(data2, columns=columns2)
+
+# 3. Get possessions from advanced stats
+json3 = requests.get(url3, headers=headers).json()
+df3 = pd.DataFrame(data3, columns=columns3)
+df3 = df3[['PLAYER_ID', 'POSS']]
+
+# Merge datasets
+df.drop(columns=['MIN'], inplace=True)
+collist = [col for col in df2.columns if col not in df.columns]
+collist.append('PLAYER_ID')
+df2 = df2[collist]
+
+combo_df = df.merge(df2, on=['PLAYER_ID'])
+combo_df = combo_df.merge(df3)
+combo_df['year'] = year
+```
+
+## Output Files
+
+<ResponseField name="hustle.csv" type="CSV">
+  Regular season hustle stats (all years)
+  
+  **Columns**: All hustle stats + tracking data + `year` column
+</ResponseField>
+
+<ResponseField name="hustle_ps.csv" type="CSV">
+  Playoff hustle stats (all years)
+  
+  **Columns**: Same as regular season file
+</ResponseField>
+
+## Usage Example
+
+```python
+# Set playoff mode
+ps = True
+
+# Generate master hustle file
+hustle = hustle_master(ps=ps)
+
+# Display column names
+print(hustle.columns)
+```
+
+**Output**:
+```
+Data Length
+612
+612
+Frame Length
+Data Length
+612
+```
+
+**Sample columns**:
+```
+Index(['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'AGE', 'GP',
+       'CONTESTED_SHOTS', 'CONTESTED_SHOTS_2PT', 'CONTESTED_SHOTS_3PT',
+       'DEFLECTIONS', 'CHARGES_DRAWN', 'SCREEN_ASSISTS', 'SCREEN_AST_PTS',
+       'OFF_BOXOUTS', 'DEF_BOXOUTS', 'BOX_OUT_PLAYER_TEAM_REBS',
+       'BOX_OUT_PLAYER_REBS', 'LOOSE_BALLS_RECOVERED', 'DIST_MILES',
+       'DIST_MILES_OFF', 'DIST_MILES_DEF', 'AVG_SPEED', 'AVG_SPEED_OFF',
+       'AVG_SPEED_DEF', 'POSS', 'year'],
+      dtype='object')
+```
+
+## Key Features
+
+- **Multi-source integration**: Combines three different NBA.com endpoints
+- **Movement tracking**: Links hustle plays to player speed and distance data
+- **Possession context**: Includes possession counts for rate calculations
+- **Historical data**: Maintains master files from previous seasons
+- **Playoff/regular season**: Separate files for each season type
+
+## Analysis Use Cases
+
+- **Effort metrics**: Deflections, loose balls, charges drawn
+- **Screening value**: Screen assists and points generated
+- **Rebounding effort**: Box out statistics
+- **Movement analysis**: Distance covered and speed metrics
+- **Contest rates**: Shot contests per possession or per minute

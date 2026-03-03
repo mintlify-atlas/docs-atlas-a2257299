@@ -1,0 +1,248 @@
+---
+title: 'Defense'
+description: 'Defensive metrics and opponent field goal data collection'
+---
+
+## Overview
+
+The `defense.py` script collects defensive statistics including opponent field goal percentage (DFG%), rim protection metrics, and defensive frequency data from NBA.com stats and PBP Stats API.
+
+## Data Sources
+
+- **NBA.com Stats API**: Defensive dashboard data (DFG%, rim defense)
+- **PBP Stats API**: Rim accuracy and frequency metrics
+- **Endpoints**:
+  - `stats.nba.com/stats/leaguedashptdefend`
+  - `api.pbpstats.com/get-on-off/nba/stat`
+
+## Core Functions
+
+### pull_data()
+
+Fetches data from NBA.com stats endpoints.
+
+<ParamField path="url" type="string" required>
+  Full NBA.com stats API URL
+</ParamField>
+
+**Returns**: `pd.DataFrame` with defensive statistics
+
+```python
+# From defense.py:22
+def pull_data(url):
+    headers = {
+        "Host": "stats.nba.com",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://stats.nba.com/"
+    }
+    json = requests.get(url, headers=headers).json()
+    data = json["resultSets"][0]["rowSet"]
+    columns = json["resultSets"][0]["headers"]
+    df = pd.DataFrame.from_records(data, columns=columns)
+    return df
+```
+
+### prep_dfg()
+
+Cleans and standardizes DFG (Defender Field Goal) data.
+
+<ParamField path="dfg" type="pd.DataFrame" required>
+  Raw defensive data from NBA.com
+</ParamField>
+
+**Returns**: Cleaned DataFrame with percentage values scaled to 0-100 range
+
+```python
+# From defense.py:86
+def prep_dfg(dfg):
+    dfg = dfg.rename(columns={'DIFF%':'Diff%'})
+    dfg.columns = ['PLAYER_ID','PLAYER', 'TEAM_ID','TEAM', 'POSITION', 'AGE',
+                   'GP', 'G', 'FREQ%', 'DFGM', 'DFGA', 'DFG%', 'FG%', 'DIFF%']
+    for col in dfg:
+        if '%' in col:
+            dfg[col] *= 100
+    return dfg
+```
+
+### wowy_statlog()
+
+Collects rim protection stats from PBP Stats API.
+
+<ParamField path="stat" type="string" required>
+  Stat type: `"AtRimAccuracyOpponent"` or `"AtRimFrequencyOpponent"`
+</ParamField>
+
+<ParamField path="start_year" type="integer" required>
+  Starting year for data collection
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Playoffs mode toggle
+</ParamField>
+
+**Returns**: DataFrame with on/off defensive metrics per team
+
+```python
+# From defense.py:96
+def wowy_statlog(stat, start_year, ps=False):
+    s_type = 'Playoffs' if ps else 'Regular Season'
+    player_dict, team_dict = get_index()
+    
+    for season in range(start_year, 2026):
+        season_s = str(season-1) + '-' + str(season % 100)
+        url = "https://api.pbpstats.com/get-on-off/nba/stat"
+        
+        for team in team_dict.keys():
+            params = {
+                "Season": season_s,
+                "SeasonType": s_type,
+                "TeamId": team_dict[team],
+                "Stat": stat
+            }
+            response = requests.get(url, params=params)
+```
+
+### update_dash()
+
+Updates defensive dashboard data from NBA.com.
+
+<ParamField path="ps" type="boolean" default="False">
+  If True, fetches playoff data. If False, regular season.
+</ParamField>
+
+**Returns**: Saves two CSV files - overall DFG and rim DFG
+
+```python
+# From defense.py:166
+def update_dash(ps=False):
+    stype = 'Playoffs' if ps else 'Regular%20Season'
+    
+    # Overall defense
+    url = f"https://stats.nba.com/stats/leaguedashptdefend?DefenseCategory=Overall&SeasonType={stype}"
+    df = pull_data(url)
+    df = prep_dfg(df)
+    df['year'] = 2025
+    
+    # Rim defense (< 6 feet)
+    url_rim = f"https://stats.nba.com/stats/leaguedashptdefend?DefenseCategory=Less%20Than%206Ft&SeasonType={stype}"
+```
+
+## Statistics Collected
+
+### DFG Stats (Defender Field Goal)
+
+<ResponseField name="PLAYER_ID" type="integer">
+  NBA player ID
+</ResponseField>
+
+<ResponseField name="DFGA" type="integer">
+  Defensive Field Goal Attempts - shots defended
+</ResponseField>
+
+<ResponseField name="DFGM" type="integer">
+  Defensive Field Goal Made - shots made when defended
+</ResponseField>
+
+<ResponseField name="DFG%" type="float">
+  Opponent field goal percentage when defended
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Normal field goal percentage (baseline)
+</ResponseField>
+
+<ResponseField name="DIFF%" type="float">
+  Difference between DFG% and FG% (negative is better defense)
+</ResponseField>
+
+<ResponseField name="FREQ%" type="float">
+  Frequency of defensive matchups
+</ResponseField>
+
+### Rim Protection Stats
+
+<ResponseField name="AtRimAccuracyOpponent" type="float">
+  Opponent field goal percentage at the rim (< 6 feet)
+</ResponseField>
+
+<ResponseField name="AtRimFrequencyOpponent" type="float">
+  Frequency of opponent attempts at the rim
+</ResponseField>
+
+## Output Files
+
+<ResponseField name="dfg.csv / dfg_p.csv" type="CSV">
+  Overall defensive field goal data
+  
+  **Path**: `{year}/defense/dfg.csv` or `{year}/playoffs/defense/dfg_p.csv`
+</ResponseField>
+
+<ResponseField name="rimdfg.csv / rimdfg_p.csv" type="CSV">
+  Rim defense field goal data (shots < 6 feet)
+  
+  **Path**: `{year}/defense/rimdfg.csv`
+</ResponseField>
+
+<ResponseField name="rim_acc.csv" type="CSV">
+  Rim accuracy opponent stats from PBP Stats
+  
+  **Path**: `{year}/defense/rim_acc.csv`
+</ResponseField>
+
+<ResponseField name="rimfreq.csv" type="CSV">
+  Rim frequency opponent stats from PBP Stats
+  
+  **Path**: `{year}/defense/rimfreq.csv`
+</ResponseField>
+
+## Usage Example
+
+```python
+# Update defensive dashboard for 2024-25 season
+update_dash(ps=False)  # Regular season
+
+# Collect rim protection stats
+stat = "AtRimAccuracyOpponent"
+filename = '2025/defense/rim_acc.csv'
+update_log(filename, stat, ps=False)
+
+# Collect rim frequency stats
+stat2 = "AtRimFrequencyOpponent"
+filename2 = '2025/defense/rimfreq.csv'
+update_log(filename2, stat2, ps=False)
+```
+
+**Output**:
+```
+Fetching data from: https://stats.nba.com/stats/leaguedashptdefend...
+Processing 612 players for year 2025...
+Saved to 2025/defense/dfg.csv
+Saved to 2025/defense/rimdfg.csv
+```
+
+## Master File Updates
+
+```python
+# From defense.py:238-273
+def update_masters(masters, ps=False):
+    trail = '_p' if ps else ''
+    end_year = 2026
+    frames = [[] for _ in range(len(masters))]
+    
+    for year in range(2014, end_year):
+        path = f"{year}/{'playoffs/' if ps else ''}defense/"
+        for i, file in enumerate(masters):
+            df = pd.read_csv(path + file + '.csv')
+            frames[i].append(df)
+    
+    for i, master in enumerate(masters):
+        masterframe = pd.concat(frames[i])
+        masterframe.to_csv(masters[i] + trail + '.csv', index=False)
+```
+
+Merges individual year files into master files:
+- `rimfreq.csv` / `rimfreq_p.csv`
+- `rim_acc.csv` / `rim_acc_p.csv`
+- `dfg.csv` / `dfg_p.csv`
+- `rimdfg.csv` / `rimdfg_p.csv`

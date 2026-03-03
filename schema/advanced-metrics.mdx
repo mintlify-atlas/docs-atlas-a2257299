@@ -1,0 +1,563 @@
+---
+title: 'Advanced Metrics Schema'
+description: 'Calculated fields, play-type breakdowns, and advanced statistics'
+---
+
+## Overview
+
+Advanced metrics provide deeper insight into player and team performance through calculated statistics, play-type analysis, and adjusted metrics that account for context and competition.
+
+## Play-Type Analysis
+
+### playtype.csv
+
+Player-level play-type statistics showing how players score in different offensive situations.
+
+**File**: `playtype.csv` / `playtype_p.csv`
+
+<ResponseField name="PLAYER_ID" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="Player" type="string" required>
+  Player name
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="TEAM_ID" type="integer">
+  Team identifier
+</ResponseField>
+
+<ResponseField name="TEAM_NAME" type="string">
+  Full team name
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year
+</ResponseField>
+
+<ResponseField name="playtype" type="string" required>
+  Type of offensive play:
+  - `Isolation`: 1-on-1 isolation plays
+  - `Transition`: Fast break opportunities  
+  - `PRBallHandler`: Pick and roll ball handler
+  - `PRRollMan`: Pick and roll roll man
+  - `Postup`: Post-up plays
+  - `Spotup`: Spot-up shooting
+  - `Handoff`: Handoff plays
+  - `Cut`: Cutting to the basket
+  - `OffScreen`: Coming off screens
+  - `Putbacks`: Offensive rebound putbacks
+  - `Misc`: Miscellaneous plays
+</ResponseField>
+
+<ResponseField name="Position" type="string">
+  Player position (G, F, C, or combinations)
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="% Time" type="float">
+  Percentage of offensive possessions used in this play type
+</ResponseField>
+
+<ResponseField name="Poss" type="integer">
+  Total possessions of this play type
+</ResponseField>
+
+<ResponseField name="Points" type="integer">
+  Total points scored on this play type
+</ResponseField>
+
+<ResponseField name="PPP" type="float">
+  Points per possession - primary efficiency metric
+  
+  **Elite**: > 1.10 PPP  
+  **Good**: 0.95-1.10 PPP  
+  **Average**: 0.85-0.95 PPP  
+  **Below Average**: < 0.85 PPP
+</ResponseField>
+
+<ResponseField name="FGm" type="integer">
+  Field goals missed (alternative spelling in some datasets)
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goals attempted
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage
+</ResponseField>
+
+<ResponseField name="aFG%" type="float">
+  Adjusted field goal percentage (accounts for 3-point value)
+</ResponseField>
+
+<ResponseField name="%TO" type="float">
+  Turnover percentage - portion of possessions ending in turnover
+</ResponseField>
+
+<ResponseField name="%FT" type="float">
+  Free throw percentage - portion of possessions resulting in free throws
+</ResponseField>
+
+<ResponseField name="%SF" type="float">
+  Shooting foul percentage - portion of possessions drawing shooting fouls
+</ResponseField>
+
+<ResponseField name="%Score" type="float">
+  Scoring frequency - portion of possessions resulting in points
+</ResponseField>
+
+<ResponseField name="FTFreq%" type="float">
+  Free throw frequency (duplicate field)
+</ResponseField>
+
+<ResponseField name="TOVFreq%" type="float">
+  Turnover frequency (duplicate field)
+</ResponseField>
+
+<ResponseField name="SFFreq%" type="float">
+  Shooting foul frequency (duplicate field)
+</ResponseField>
+
+<ResponseField name="And OneFreq%" type="float">
+  And-one frequency - made basket with foul drawn
+</ResponseField>
+
+<ResponseField name="ScoreFreq%" type="float">
+  Scoring frequency (duplicate field)
+</ResponseField>
+
+<ResponseField name="Percentile" type="integer">
+  Percentile rank among all players for this play type (0-100)
+  
+  Based on PPP efficiency relative to league average
+</ResponseField>
+
+**Example**:
+```csv
+Position,Player,Team,GP,% Time,Poss,Points,PPP,FGm,FGM,FGA,FG%,aFG%,%TO,%FT,%SF,%Score,year,playtype,...
+G,Stephen Curry,GSW,79,12.4,412,478,1.16,142,178,320,55.6,58.9,11.2,8.5,7.3,62.1,2015,Transition,...
+```
+
+## Regularized Adjusted Plus-Minus (RAPM)
+
+### rapm.csv
+
+Advanced plus-minus metrics that estimate player impact while controlling for teammates, opponents, and game context.
+
+**File**: `rapm.csv`
+
+<ResponseField name="playerId" type="integer" required>
+  Unique player identifier
+</ResponseField>
+
+<ResponseField name="playerName" type="string" required>
+  Player name
+</ResponseField>
+
+<ResponseField name="season" type="string" required>
+  Season in format "YYYY-YY" (e.g., "2014-15")
+</ResponseField>
+
+<ResponseField name="primaryKey" type="string" required>
+  Unique key combining player ID and season (e.g., "101106_2009-10")
+</ResponseField>
+
+### RAPM Metrics
+
+<ResponseField name="RAPM" type="float">
+  Overall Regularized Adjusted Plus-Minus
+  
+  Net points per 100 possessions contributed by player relative to average, adjusted for teammates and opponents.
+  
+  **Interpretation**:  
+  - **Elite**: +3.0 or higher  
+  - **Good**: +1.5 to +3.0  
+  - **Average**: -1.0 to +1.5  
+  - **Below Average**: < -1.0
+</ResponseField>
+
+<ResponseField name="RAPM_Rank" type="integer">
+  League rank by RAPM (lower is better)
+</ResponseField>
+
+<ResponseField name="RAPM__Off" type="float">
+  Offensive RAPM - points added per 100 possessions on offense
+</ResponseField>
+
+<ResponseField name="RAPM__Off_Rank" type="integer">
+  League rank by offensive RAPM
+</ResponseField>
+
+<ResponseField name="RAPM__Def" type="float">
+  Defensive RAPM - points prevented per 100 possessions on defense
+  
+  **Note**: Positive values indicate better defense (fewer points allowed)
+</ResponseField>
+
+<ResponseField name="RAPM__Def_Rank" type="integer">
+  League rank by defensive RAPM
+</ResponseField>
+
+<ResponseField name="RAPM__intercept" type="float">
+  Regression intercept for RAPM model
+</ResponseField>
+
+### Luck-Adjusted RAPM (LA_RAPM)
+
+<ResponseField name="LA_RAPM" type="float">
+  Luck-adjusted RAPM - adjusts for shooting variance and randomness
+</ResponseField>
+
+<ResponseField name="LA_RAPM_Rank" type="integer">
+  League rank by luck-adjusted RAPM
+</ResponseField>
+
+<ResponseField name="LA_RAPM__Off" type="float">
+  Offensive luck-adjusted RAPM
+</ResponseField>
+
+<ResponseField name="LA_RAPM__Off_Rank" type="integer">
+  Offensive LA_RAPM rank
+</ResponseField>
+
+<ResponseField name="LA_RAPM__Def" type="float">
+  Defensive luck-adjusted RAPM
+</ResponseField>
+
+<ResponseField name="LA_RAPM__Def_Rank" type="integer">
+  Defensive LA_RAPM rank
+</ResponseField>
+
+<ResponseField name="LA_RAPM__intercept" type="float">
+  Regression intercept for LA_RAPM model
+</ResponseField>
+
+### Component Metrics
+
+RAPM broken down by four factors (eFG%, turnover rate, offensive rebound rate, free throw rate):
+
+<ResponseField name="RA_EFG" type="float">
+  RAPM component for effective field goal percentage
+</ResponseField>
+
+<ResponseField name="RA_EFG__Off" type="float">
+  Offensive eFG% RAPM component
+</ResponseField>
+
+<ResponseField name="RA_EFG__Def" type="float">
+  Defensive eFG% RAPM component
+</ResponseField>
+
+<ResponseField name="RA_FTR" type="float">
+  RAPM component for free throw rate
+</ResponseField>
+
+<ResponseField name="RA_FTR__Off" type="float">
+  Offensive FTR RAPM component
+</ResponseField>
+
+<ResponseField name="RA_FTR__Def" type="float">
+  Defensive FTR RAPM component
+</ResponseField>
+
+<ResponseField name="RA_ORBD" type="float">
+  RAPM component for offensive rebound differential
+</ResponseField>
+
+<ResponseField name="RA_ORBD__Off" type="float">
+  Offensive rebound RAPM component
+</ResponseField>
+
+<ResponseField name="RA_ORBD__Def" type="float">
+  Defensive rebound RAPM component
+</ResponseField>
+
+<ResponseField name="RA_TOV" type="float">
+  RAPM component for turnover rate
+</ResponseField>
+
+<ResponseField name="RA_TOV__Off" type="float">
+  Offensive turnover RAPM component
+</ResponseField>
+
+<ResponseField name="RA_TOV__Def" type="float">
+  Defensive turnover RAPM component (turnovers forced)
+</ResponseField>
+
+All component metrics include `_Rank` and `_intercept` fields following the same pattern as overall RAPM.
+
+**Example**:
+```csv
+playerId,playerName,RAPM,RAPM_Rank,RAPM__Off,RAPM__Def,...,season,primaryKey
+101106,"Andrew Bogut",3.06,18,0.49,2.57,...,2009-10,101106_2009-10
+```
+
+## Calculated Shooting Metrics
+
+### True Shooting Percentage (TS%)
+
+Found in: `scoring.csv`, `totals.csv`, `passing.csv`, `team_shotzone.csv`
+
+**Formula**: `PTS / (2 * (FGA + 0.44 * FTA))`
+
+**Interpretation**:
+- **Elite**: > 60%  
+- **Good**: 55-60%  
+- **Average**: 52-55%  
+- **Below Average**: < 52%
+
+Accounts for:
+- Value of 3-point shots (worth 1.5x a 2-pointer)
+- Value of free throws (efficient scoring)
+- And-one free throws (the 0.44 coefficient)
+
+### Effective Field Goal Percentage (eFG%)
+
+Found in: `player_shooting.csv`, `tracking.csv`, `team_shooting.csv`, `team_shotzone.csv`
+
+**Formula**: `(FGM + 0.5 * 3PM) / FGA`
+
+**Interpretation**:
+- **Elite**: > 55%  
+- **Good**: 52-55%  
+- **Average**: 48-52%  
+- **Below Average**: < 48%
+
+Adjusts field goal percentage to account for the added value of 3-point shots.
+
+### Points Per Possession (PPP)
+
+Found in: `playtype.csv`, `teamplay.csv`
+
+**Formula**: `Points / Possessions`
+
+**Interpretation**:
+- **Elite**: > 1.10  
+- **Good**: 0.95-1.10  
+- **Average**: 0.85-0.95  
+- **Below Average**: < 0.85
+
+Primary metric for evaluating efficiency of specific play types.
+
+## Usage Examples
+
+### Finding Elite Pick and Roll Ball Handlers
+
+```python
+import pandas as pd
+
+# Load play-type data
+playtype = pd.read_csv('playtype.csv')
+
+# Filter for PnR ball handlers with significant volume
+pr_handlers = playtype[
+    (playtype['playtype'] == 'PRBallHandler') &
+    (playtype['year'] == 2023) &
+    (playtype['Poss'] >= 200)  # Minimum possessions
+].sort_values('PPP', ascending=False)
+
+print(pr_handlers[['Player', 'Team', 'Poss', 'PPP', 'Percentile', '%Score', '%TO']].head(15))
+```
+
+### Analyzing RAPM Two-Way Players
+
+```python
+# Load RAPM data
+rapm = pd.read_csv('rapm.csv')
+
+# Filter for 2022-23 season
+rapm_2023 = rapm[rapm['season'] == '2022-23']
+
+# Find elite two-way players (top 50 in both offense and defense)
+two_way = rapm_2023[
+    (rapm_2023['RAPM__Off_Rank'] <= 50) &
+    (rapm_2023['RAPM__Def_Rank'] <= 50)
+].sort_values('RAPM', ascending=False)
+
+print(two_way[['playerName', 'RAPM', 'RAPM__Off', 'RAPM__Def', 'RAPM_Rank']])
+```
+
+### Comparing Play-Type Efficiency by Position
+
+```python
+# Load play-type data
+playtype = pd.read_csv('playtype.csv')
+
+# Focus on isolation plays
+iso = playtype[
+    (playtype['playtype'] == 'Isolation') &
+    (playtype['year'] == 2023) &
+    (playtype['Poss'] >= 100)
+]
+
+# Group by position
+iso_by_pos = iso.groupby('Position').agg({
+    'PPP': 'mean',
+    'FG%': 'mean',
+    '%TO': 'mean',
+    'Poss': 'sum'
+}).round(3)
+
+print(iso_by_pos.sort_values('PPP', ascending=False))
+```
+
+### True Shooting vs. Effective Field Goal Analysis
+
+```python
+# Load scoring and totals data
+scoring = pd.read_csv('scoring.csv')
+totals = pd.read_csv('totals.csv')
+
+# Merge datasets
+merged = pd.merge(
+    scoring[['nba_id', 'Player', 'year', 'TS%', 'PTS']],
+    totals[['nba_id', 'year', 'FGA', 'FTA']],
+    on=['nba_id', 'year']
+)
+
+# Calculate FTA rate
+merged['FTA_rate'] = merged['FTA'] / merged['FGA']
+
+# Players with high TS% but low FTA rate (pure shooters)
+filtered_2023 = merged[
+    (merged['year'] == 2023) &
+    (merged['PTS'] >= 500)  # Min scoring threshold
+]
+
+# Find efficient scorers who don't rely on free throws
+efficient_shooters = filtered_2023[
+    (filtered_2023['TS%'] >= 60) &
+    (filtered_2023['FTA_rate'] < 0.3)
+].sort_values('TS%', ascending=False)
+
+print(efficient_shooters[['Player', 'TS%', 'FTA_rate', 'PTS']])
+```
+
+### RAPM Component Analysis
+
+```python
+# Load RAPM data
+rapm = pd.read_csv('rapm.csv')
+
+# Focus on recent season
+rapm_recent = rapm[rapm['season'] == '2022-23']
+
+# Analyze component contributions
+rapm_recent['shooting_impact'] = rapm_recent['RA_EFG__Off'] - rapm_recent['RA_EFG__Def']
+rapm_recent['turnover_impact'] = rapm_recent['RA_TOV__Off'] - rapm_recent['RA_TOV__Def']
+rapm_recent['rebound_impact'] = rapm_recent['RA_ORBD__Off'] - rapm_recent['RA_ORBD__Def']
+rapm_recent['ft_impact'] = rapm_recent['RA_FTR__Off'] - rapm_recent['RA_FTR__Def']
+
+# Find players who excel at specific skills
+top_shooters = rapm_recent.nlargest(10, 'shooting_impact')[['playerName', 'shooting_impact', 'RAPM']]
+top_playmakers = rapm_recent.nsmallest(10, 'turnover_impact')[['playerName', 'turnover_impact', 'RAPM']]
+
+print("Top Shooting Impact:")
+print(top_shooters)
+print("\nTop Playmaking Impact (low turnovers):")
+print(top_playmakers)
+```
+
+### Play-Type Specialization Index
+
+```python
+# Load play-type data
+playtype = pd.read_csv('playtype.csv')
+
+# Calculate specialization for 2023
+pt_2023 = playtype[playtype['year'] == 2023]
+
+# For each player, find their most efficient play type (min 50 poss)
+player_best = pt_2023[
+    pt_2023['Poss'] >= 50
+].sort_values('PPP', ascending=False).groupby('PLAYER_ID').first().reset_index()
+
+# Players who are elite specialists (>90th percentile)
+specialists = player_best[
+    player_best['Percentile'] >= 90
+].sort_values('PPP', ascending=False)
+
+print(specialists[['Player', 'playtype', 'PPP', 'Percentile', 'Poss']])
+```
+
+## Integration with Core Schemas
+
+### Joining Advanced Metrics with Player Stats
+
+```python
+# Combine RAPM with basic stats
+scoring = pd.read_csv('scoring.csv')
+rapm = pd.read_csv('rapm.csv')
+
+# Extract year from season string
+rapm['year'] = rapm['season'].str[:4].astype(int)
+
+# Merge
+advanced = pd.merge(
+    scoring,
+    rapm[['playerId', 'year', 'RAPM', 'RAPM__Off', 'RAPM__Def']],
+    left_on=['nba_id', 'year'],
+    right_on=['playerId', 'year'],
+    how='inner'
+)
+
+print(advanced[['Player', 'year', 'PTS', 'TS%', 'RAPM']].head())
+```
+
+### Comprehensive Player Profile
+
+```python
+# Create complete player profile combining multiple sources
+def get_player_profile(player_id, season):
+    scoring = pd.read_csv('scoring.csv')
+    playtype = pd.read_csv('playtype.csv')
+    rapm = pd.read_csv('rapm.csv')
+    hustle = pd.read_csv('hustle.csv')
+    
+    # Basic stats
+    basic = scoring[
+        (scoring['nba_id'] == player_id) &
+        (scoring['year'] == season)
+    ]
+    
+    # Play types
+    plays = playtype[
+        (playtype['PLAYER_ID'] == player_id) &
+        (playtype['year'] == season)
+    ].sort_values('Poss', ascending=False)
+    
+    # RAPM
+    season_str = f"{season}-{str(season+1)[-2:]}"
+    impact = rapm[rapm['season'] == season_str]
+    
+    # Hustle
+    hustle_stats = hustle[
+        (hustle['PLAYER_ID'] == player_id) &
+        (hustle['year'] == season)
+    ]
+    
+    return {
+        'basic': basic,
+        'play_types': plays,
+        'impact': impact,
+        'hustle': hustle_stats
+    }
+
+# Example usage
+profile = get_player_profile(201939, 2023)  # Stephen Curry
+print("Play Type Breakdown:")
+print(profile['play_types'][['playtype', 'Poss', 'PPP', 'Percentile']])
+```

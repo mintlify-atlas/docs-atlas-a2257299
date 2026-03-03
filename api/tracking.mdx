@@ -1,0 +1,374 @@
+---
+title: 'Tracking'
+description: 'Player tracking data for drives, touches, passes, and shot types'
+---
+
+## Overview
+
+The `new_tracking.py` script collects player tracking statistics from NBA.com's tracking endpoints. It gathers data across 8 different tracking categories including drives, catch-and-shoot, passing, possessions/touches, and location-specific touches.
+
+## Data Sources
+
+- **NBA.com Tracking API**: `leaguedashptstats` endpoint
+- **Tracking Categories**:
+  - Drives
+  - Catch & Shoot
+  - Passing
+  - Possessions (touches)
+  - Elbow Touches
+  - Post Touches
+  - Paint Touches
+  - Pull-Up Shots
+
+## Core Function
+
+### get_tracking()
+
+Collects tracking data for all categories across specified years.
+
+<ParamField path="years" type="list[int]" required>
+  List of years to collect (e.g., `[2024, 2025]`)
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Playoffs mode - if True, fetches playoff data
+</ParamField>
+
+**Returns**: Dictionary mapping category names to lists of DataFrames (one per year)
+
+```python
+# From new_tracking.py:10
+def get_tracking(years, ps=False):
+    stype = "Playoffs" if ps else "Regular%20Season"
+    
+    shots = ["Drives", "CatchShoot", "Passing", "Possessions", 
+             "ElbowTouch", "PostTouch", "PaintTouch", "PullUpShot"]
+    
+    # Dictionary to store dataframes for each shot category
+    category_frames = {shot: [] for shot in shots}
+    
+    for year in years:
+        season = str(year) + '-' + str(year + 1 - 2000)
+        
+        for shot in shots:
+            url = f"https://stats.nba.com/stats/leaguedashptstats?PtMeasureType={shot}&Season={season}&SeasonType={stype}"
+            
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                json = response.json()
+                data = json["resultSets"][0]["rowSet"]
+                columns = json["resultSets"][0]["headers"]
+                df = pd.DataFrame.from_records(data, columns=columns)
+                df["Season"] = season
+                df['year'] = year + 1
+                category_frames[shot].append(df)
+```
+
+## Tracking Categories
+
+### Drives
+
+<ResponseField name="DRIVES" type="integer">
+  Number of drives to the basket
+</ResponseField>
+
+<ResponseField name="DRIVE_FGM" type="integer">
+  Field goals made on drives
+</ResponseField>
+
+<ResponseField name="DRIVE_FGA" type="integer">
+  Field goal attempts on drives
+</ResponseField>
+
+<ResponseField name="DRIVE_FG_PCT" type="float">
+  Field goal percentage on drives
+</ResponseField>
+
+<ResponseField name="DRIVE_FT_PCT" type="float">
+  Free throw percentage on drive attempts
+</ResponseField>
+
+<ResponseField name="DRIVE_PTS" type="integer">
+  Points scored on drives
+</ResponseField>
+
+<ResponseField name="DRIVE_PASSES" type="integer">
+  Passes made during drives
+</ResponseField>
+
+<ResponseField name="DRIVE_AST" type="integer">
+  Assists generated from drives
+</ResponseField>
+
+<ResponseField name="DRIVE_TOV" type="integer">
+  Turnovers on drives
+</ResponseField>
+
+<ResponseField name="DRIVE_PF" type="integer">
+  Personal fouls drawn on drives
+</ResponseField>
+
+### Catch & Shoot
+
+<ResponseField name="CATCH_SHOOT_FGM" type="integer">
+  Catch-and-shoot field goals made
+</ResponseField>
+
+<ResponseField name="CATCH_SHOOT_FGA" type="integer">
+  Catch-and-shoot field goal attempts
+</ResponseField>
+
+<ResponseField name="CATCH_SHOOT_FG_PCT" type="float">
+  Catch-and-shoot field goal percentage
+</ResponseField>
+
+<ResponseField name="CATCH_SHOOT_PTS" type="integer">
+  Points from catch-and-shoot situations
+</ResponseField>
+
+<ResponseField name="CATCH_SHOOT_FG3M" type="integer">
+  Catch-and-shoot three-pointers made
+</ResponseField>
+
+<ResponseField name="CATCH_SHOOT_FG3A" type="integer">
+  Catch-and-shoot three-point attempts
+</ResponseField>
+
+<ResponseField name="CATCH_SHOOT_FG3_PCT" type="float">
+  Catch-and-shoot three-point percentage
+</ResponseField>
+
+### Passing
+
+<ResponseField name="PASSES_MADE" type="integer">
+  Total passes made
+</ResponseField>
+
+<ResponseField name="PASSES_RECEIVED" type="integer">
+  Total passes received
+</ResponseField>
+
+<ResponseField name="AST" type="integer">
+  Assists
+</ResponseField>
+
+<ResponseField name="SECONDARY_AST" type="integer">
+  Secondary assists (pass to the assister)
+</ResponseField>
+
+<ResponseField name="POTENTIAL_AST" type="integer">
+  Potential assists (pass led to shot attempt)
+</ResponseField>
+
+<ResponseField name="AST_PTS_CREATED" type="integer">
+  Points created from assists
+</ResponseField>
+
+<ResponseField name="AST_ADJ" type="float">
+  Adjusted assists (accounts for shot difficulty)
+</ResponseField>
+
+### Possessions (Touches)
+
+<ResponseField name="TOUCHES" type="integer">
+  Number of times player touched the ball
+</ResponseField>
+
+<ResponseField name="FRONT_CT_TOUCHES" type="integer">
+  Touches in front court
+</ResponseField>
+
+<ResponseField name="TIME_OF_POSS" type="float">
+  Time of possession (seconds)
+</ResponseField>
+
+<ResponseField name="AVG_SEC_PER_TOUCH" type="float">
+  Average seconds per touch
+</ResponseField>
+
+<ResponseField name="AVG_DRIB_PER_TOUCH" type="float">
+  Average dribbles per touch
+</ResponseField>
+
+<ResponseField name="PTS_PER_TOUCH" type="float">
+  Points per touch
+</ResponseField>
+
+<ResponseField name="ELBOW_TOUCHES" type="integer">
+  Touches at the elbow
+</ResponseField>
+
+<ResponseField name="POST_TOUCHES" type="integer">
+  Touches in the post
+</ResponseField>
+
+<ResponseField name="PAINT_TOUCHES" type="integer">
+  Touches in the paint
+</ResponseField>
+
+### Pull-Up Shots
+
+<ResponseField name="PULL_UP_FGM" type="integer">
+  Pull-up field goals made
+</ResponseField>
+
+<ResponseField name="PULL_UP_FGA" type="integer">
+  Pull-up field goal attempts
+</ResponseField>
+
+<ResponseField name="PULL_UP_FG_PCT" type="float">
+  Pull-up field goal percentage
+</ResponseField>
+
+<ResponseField name="PULL_UP_PTS" type="integer">
+  Points from pull-up shots
+</ResponseField>
+
+<ResponseField name="PULL_UP_FG3M" type="integer">
+  Pull-up three-pointers made
+</ResponseField>
+
+<ResponseField name="PULL_UP_FG3A" type="integer">
+  Pull-up three-point attempts
+</ResponseField>
+
+## Output Files
+
+Each tracking category has its own file:
+
+<ResponseField name="drives.csv" type="CSV">
+  Drive statistics
+  
+  **Path**: `tracking/drives.csv` or `tracking_ps/drives.csv`
+</ResponseField>
+
+<ResponseField name="catchshoot.csv" type="CSV">
+  Catch-and-shoot statistics
+  
+  **Path**: `tracking/catchshoot.csv`
+</ResponseField>
+
+<ResponseField name="passing.csv" type="CSV">
+  Passing and assist statistics
+  
+  **Path**: `tracking/passing.csv`
+</ResponseField>
+
+<ResponseField name="touches.csv" type="CSV">
+  Possession and touch statistics
+  
+  **Path**: `tracking/touches.csv`
+</ResponseField>
+
+<ResponseField name="elbow.csv" type="CSV">
+  Elbow touch statistics
+  
+  **Path**: `tracking/elbow.csv`
+</ResponseField>
+
+<ResponseField name="post.csv" type="CSV">
+  Post touch statistics
+  
+  **Path**: `tracking/post.csv`
+</ResponseField>
+
+<ResponseField name="paint.csv" type="CSV">
+  Paint touch statistics
+  
+  **Path**: `tracking/paint.csv`
+</ResponseField>
+
+<ResponseField name="pullup.csv" type="CSV">
+  Pull-up shot statistics
+  
+  **Path**: `tracking/pullup.csv`
+</ResponseField>
+
+## File Management
+
+```python
+# From new_tracking.py:66-96
+category_maps = {
+    "Drives": 'drives.csv',
+    "CatchShoot": 'catchshoot.csv',
+    "Passing": 'passing.csv',
+    "Possessions": 'touches.csv',
+    "ElbowTouch": 'elbow.csv',
+    "PostTouch": 'post.csv',
+    "PaintTouch": 'paint.csv',
+    "PullUpShot": 'pullup.csv'
+}
+
+if ps == False:
+    for cat in category_frames.keys():
+        file = 'tracking/' + category_maps[cat]
+        old_df = pd.read_csv(file)
+        old_df = old_df[old_df.year != current_year + 1]
+        new_df = pd.concat(category_frames[cat])
+        df = pd.concat([old_df, new_df])
+        df.to_csv(file, index=False)
+else:
+    for cat in category_frames_ps.keys():
+        file = 'tracking_ps/' + category_maps[cat]
+        df = pd.concat(category_frames_ps[cat])
+        df.to_csv(file, index=False)
+```
+
+## Usage Example
+
+```python
+# Configuration
+ps = True  # Playoff mode
+current_year = 2024
+years = [i for i in range(2013, 2025)]
+
+# Collect tracking data
+if ps == False:
+    category_frames = get_tracking(years, ps=ps)
+else:
+    category_frames_ps = get_tracking(years, ps=True)
+
+# Save to files
+for cat in category_frames_ps.keys():
+    file = 'tracking_ps/' + category_maps[cat]
+    df = pd.concat(category_frames_ps[cat])
+    df.to_csv(file, index=False)
+```
+
+**Output**:
+```
+Processing 2024 season...
+Fetching Drives data...
+Fetching CatchShoot data...
+Fetching Passing data...
+Fetching Possessions data...
+Fetching ElbowTouch data...
+Fetching PostTouch data...
+Fetching PaintTouch data...
+Fetching PullUpShot data...
+Saved to tracking_ps/drives.csv
+```
+
+## Historical Data Management
+
+The script updates existing files by:
+1. Reading old data
+2. Filtering out the current year (to avoid duplicates)
+3. Concatenating new data
+4. Saving updated file
+
+```python
+old_df = pd.read_csv(file)
+old_df = old_df[old_df.year != current_year + 1]  # Remove current year
+new_df = pd.concat(category_frames[cat])  # New data
+df = pd.concat([old_df, new_df])  # Combine
+df.to_csv(file, index=False)
+```
+
+## Analysis Use Cases
+
+- **Offensive role identification**: Drives vs catch-and-shoot vs pull-up shot distribution
+- **Playmaking evaluation**: Passing metrics, secondary assists, potential assists
+- **Ball dominance**: Touches, time of possession, dribbles per touch
+- **Location tendencies**: Elbow, post, and paint touches
+- **Shot creation**: Pull-up vs catch-and-shoot percentages

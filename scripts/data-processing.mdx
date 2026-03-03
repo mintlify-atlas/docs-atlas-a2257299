@@ -1,0 +1,527 @@
+---
+title: Data Processing
+description: Data transformation workflows, player ID mapping, dataset merging, and master file generation
+---
+
+## Processing Overview
+
+Raw data from scraping APIs requires extensive processing before analysis:
+
+<Steps>
+  <Step title="Player ID Mapping">
+    Map Basketball Reference IDs to NBA.com IDs for cross-dataset joins
+  </Step>
+  <Step title="Data Cleaning">
+    Handle missing values, standardize names, convert data types
+  </Step>
+  <Step title="Dataset Merging">
+    Combine multiple sources (tracking + shooting + defense)
+  </Step>
+  <Step title="Master File Generation">
+    Append new season data to historical master CSVs
+  </Step>
+</Steps>
+
+## Player ID Mapping
+
+### The ID Mapping Challenge
+
+Different sources use different player identifiers:
+
+- **Basketball Reference**: URL-based ID (`curryst01`)
+- **NBA.com API**: Numeric ID (`201939`)
+- **PBPStats**: Name-based lookup
+- **Spotrac/HoopsHype**: Player name strings
+
+### Building the Master Index
+
+The `make_index.py` and `make_index2.py` scripts create `index_master.csv`:
+
+```python
+import pandas as pd
+from nba_api.stats.endpoints import commonallplayers
+
+def pull_bref(ps=False, totals=False):
+    # Scrape Basketball Reference
+    # Extract player URLs
+    index_frame['bref_id'] = index_frame['url'].str.split('/', expand=True)[5]
+    index_frame['bref_id'] = index_frame['bref_id'].str.split('.', expand=True)[0]
+    
+    return index_frame
+```
+
+### Mapping bref_id to nba_id
+
+<Steps>
+  <Step title="Load Existing Mappings">
+    Read historical mappings from `index_master.csv`:
+    ```python
+    master = pd.read_csv('index_master.csv')
+    match_dict = dict(zip(master['bref_id'], master['nba_id']))
+    ```
+  </Step>
+  
+  <Step title="Apply Known Mappings">
+    Map known Basketball Reference IDs to NBA IDs:
+    ```python
+    index_frame['nba_id'] = index_frame['bref_id'].map(match_dict)
+    ```
+  </Step>
+  
+  <Step title="Handle Manual Exceptions">
+    Some players require manual ID mapping:
+    ```python
+    search_dict = {
+        "hollaro01": 1641842,   # Ron Holland
+        "sarral01": 1642259,    # Luka Samanic
+        "dadiepa01": 1642359,   # Papa Dadiet
+        "cuiyo01": 1642385,     # Yongxi Cui
+        "shannte01": 1630545    # Shaedon Sharpe
+    }
+    match_dict.update(search_dict)
+    index_frame['nba_id'] = index_frame['bref_id'].map(match_dict)
+    ```
+  </Step>
+  
+  <Step title="Fetch Missing Players from NBA API">
+    Use `nba_api` to find new players:
+    ```python
+    from nba_api.stats.endpoints import commonallplayers
+    
+    current_season = "2024-25"
+    players_data = commonallplayers.CommonAllPlayers(
+        is_only_current_season=1,
+        season=current_season
+    )
+    players_list = players_data.get_data_frames()[0]
+    player_names = dict(zip(
+        players_list['DISPLAY_FIRST_LAST'],
+        players_list['PERSON_ID']
+    ))
+    
+    # Map remaining players by name
+    notfound = index_frame[index_frame.nba_id.isna()]
+    notfound['nba_id'] = notfound['player'].map(player_names)
+    ```
+  </Step>
+  
+  <Step title="Update Master Index">
+    Append new mappings and save:
+    ```python
+    index_copy = index_frame[[
+        'player', 'url', 'year', 'team', 'bref_id', 'nba_id', 'team_id'
+    ]]
+    master = master[master.year != 2025]
+    master = pd.concat([master, index_copy])
+    master.drop_duplicates(inplace=True)
+    master.to_csv('index_master.csv', index=False)
+    ```
+  </Step>
+</Steps>
+
+### Team ID Mapping
+
+Team acronyms are mapped to numeric IDs:
+
+```python
+team_dict = dict(zip(master['team'], master['team_id']))
+index_frame['team_id'] = index_frame['team'].map(team_dict)
+```
+
+## Data Cleaning
+
+### Missing Value Handling
+
+Different strategies for different data types:
+
+```python
+# Fill numeric columns with 0
+df.fillna(0, inplace=True)
+
+# Replace empty strings with 0 before type conversion
+df.replace('', 0, inplace=True)
+
+# Drop rows missing critical IDs
+df.dropna(subset='bref_id', inplace=True)
+```
+
+### Type Conversions
+
+Ensure proper data types for calculations:
+
+```python
+# Convert string columns to numeric
+index_frame['FTA'] = index_frame['FTA'].astype(float)
+index_frame['FGA'] = index_frame['FGA'].astype(float)
+index_frame['PTS'] = index_frame['PTS'].astype(float)
+
+# Handle integer conversions for counting stats
+data_col = ['FGM', 'FGA', '2FGM', '2FGA', '3PM', '3PA']
+for col in data_col:
+    df[col] = df[col].astype(int)
+```
+
+### Calculated Fields
+
+Derive advanced metrics from raw stats:
+
+```python
+# True Shooting Percentage
+index_frame['TS%'] = (
+    index_frame['PTS'] / 
+    (2 * (index_frame['FGA'] + 0.44 * index_frame['FTA']))
+) * 100
+
+# Cap unrealistic percentages
+df.replace([np.inf, -np.inf], 0, inplace=True)
+df.loc[df['TS%'] > 150, 'TS%'] = 0
+```
+
+### Name Standardization
+
+Critical for salary data joins:
+
+```python
+def standardize_names(df, name_column):
+    """
+    Standardizes player names with enhanced handling of special cases.
+    """
+    def clean_name(name):
+        name = str(name).strip()
+        
+        # Fix specific formatting issues
+        name_fixes = {
+            'Bub Carrington': 'Ja\'Von Carrington',
+            'G.G. Jackson': 'Gregory Jackson II',
+            'Nah\'Shon Hyland': 'Bones Hyland',
+            'Sviatoslav Mykhailiuk': 'Svi Mykhailiuk'
+        }
+        
+        if name in name_fixes:
+            return name_fixes[name]
+        
+        # Handle suffixes consistently
+        suffix_map = {
+            r'Jr\\.?$': 'Jr.',
+            r'Sr\\.?$': 'Sr.',
+            r'III$': 'III',
+            r'II$': 'II'
+        }
+        
+        cleaned_name = name
+        for pattern, replacement in suffix_map.items():
+            if re.search(pattern, cleaned_name, flags=re.IGNORECASE):
+                base_name = re.sub(pattern, '', cleaned_name).strip()
+                cleaned_name = f"{base_name} {replacement}"
+        
+        return ' '.join(cleaned_name.split())
+    
+    result_df = df.copy()
+    result_df['standardized_name'] = result_df[name_column].apply(clean_name)
+    return result_df
+```
+
+### Fuzzy Name Matching
+
+For salary data with inconsistent naming:
+
+```python
+from fuzzywuzzy import fuzz
+from unidecode import unidecode
+
+def match_names(salary_df, index_df, threshold=85):
+    """
+    Match names using fuzzy string matching and containment checking.
+    """
+    def clean_name(name):
+        return unidecode(str(name).lower().strip())
+    
+    salary_names = salary_df['name'].apply(clean_name)
+    index_names = index_df['player'].apply(clean_name)
+    
+    matched_ids = []
+    for salary_name in salary_names:
+        max_score = 0
+        best_id = None
+        
+        for idx_name, nba_id in zip(index_names, index_df['nba_id']):
+            # Check containment
+            if salary_name in idx_name:
+                length_ratio = len(salary_name) / len(idx_name)
+                if length_ratio >= 0.5:
+                    score = 100 * length_ratio
+                    if score > max_score:
+                        max_score = score
+                        best_id = nba_id
+            
+            # Try fuzzy matching
+            score = fuzz.ratio(salary_name, idx_name)
+            if score > max_score:
+                max_score = score
+                best_id = nba_id
+        
+        matched_ids.append(best_id if max_score >= threshold else None)
+    
+    salary_df['nba_id'] = matched_ids
+    return salary_df
+```
+
+## Dataset Merging
+
+### Passing + Tracking Integration
+
+Combining PBPStats totals with NBA tracking data:
+
+```python
+def passing_data(ps=False, update=True):
+    # Fetch PBPStats totals
+    url = 'https://api.pbpstats.com/get-totals/nba'
+    response = requests.get(url, params=params)
+    df = pd.DataFrame(response.json()["multi_row_table_data"])
+    
+    # Load tracking data
+    df2 = pd.read_csv('tracking/passing.csv')  # NBA passing stats
+    df3 = pd.read_csv('tracking/touches.csv')  # NBA touches stats
+    
+    # Standardize join key
+    df['nba_id'] = df['PLAYER_ID'].astype(int)
+    df2['nba_id'] = df2['PLAYER_ID'].astype(int)
+    df3['nba_id'] = df3['PLAYER_ID'].astype(int)
+    
+    # Merge datasets
+    merged = df.merge(df2, on='nba_id', how='left')
+    merged = merged.merge(df3, on='nba_id', how='left')
+    
+    # Calculate derived metrics
+    merged['High Value Assist %'] = (
+        100 * (merged['ThreePtAssists'] + merged['AtRimAssists']) / 
+        merged['Assists']
+    )
+    merged['on-ball-time%'] = (
+        100 * 2 * merged['TIME_OF_POSS'] / merged['Minutes']
+    )
+    merged['Assist PPP'] = (
+        merged['AST_PTS_CREATED'] / merged['POTENTIAL_AST']
+    )
+    
+    return merged
+```
+
+### Defense Data Aggregation
+
+Combining rim protection, DFG%, and frequency stats:
+
+```python
+def update_masters(masters, ps=False):
+    trail = '_p' if ps else ''
+    frames = {master: [] for master in masters}
+    
+    for year in range(2014, 2026):
+        path = f"{year}/{'playoffs/' if ps else ''}defense/"
+        
+        for file in masters:  # ['rimfreq', 'rim_acc', 'dfg', 'rimdfg']
+            df = pd.read_csv(path + file + '.csv')
+            frames[file].append(df)
+    
+    for master in masters:
+        masterframe = pd.concat(frames[master])
+        masterframe.to_csv(f'{master}{trail}.csv', index=False)
+```
+
+## Master File Updates
+
+### Append New Season Pattern
+
+Standard workflow for updating master CSVs:
+
+```python
+def update_master(master_file, new_data, year):
+    # Load existing master
+    old = pd.read_csv(master_file)
+    
+    # Remove current year (in case of re-run)
+    old = old[old.year != year]
+    
+    # Add year column to new data
+    new_data['year'] = year
+    
+    # Concatenate
+    updated = pd.concat([old, new_data])
+    
+    # Save
+    updated.to_csv(master_file, index=False)
+```
+
+### Hustle Stats Example
+
+Combining hustle + speed/distance + possessions:
+
+```python
+def hustle_master(ps=False):
+    trail = '_ps' if ps else ''
+    
+    # Load old data (exclude current season)
+    old_df = pd.read_csv('hustle.csv')
+    old_df = old_df[old_df.year < 2025]
+    
+    # Fetch new season data
+    df = get_hustle(2025, ps=ps)  # Returns merged hustle + speed + poss
+    
+    # Combine
+    hustle = pd.concat([old_df, df])
+    hustle.to_csv(f'hustle{trail}.csv', index=False)
+    
+    return hustle
+```
+
+### Shooting Stats Consolidation
+
+Aggregating multiple defender distance categories:
+
+```python
+def master_shooting(playoffs=False):
+    data = []
+    
+    for year in range(2014, 2026):
+        path = f"{year}/{'/playoffs' if playoffs else ''}/player_shooting/"
+        files = ['wide_open', 'open', 'tight', 'very_tight']
+        
+        for file in files:
+            df = pd.read_csv(path + file + '.csv')
+            df['year'] = year
+            df['shot_type'] = file
+            data.append(df)
+    
+    master = pd.concat(data)
+    return master
+```
+
+## Dribble Shot Aggregation
+
+Combining catch-and-shoot + pull-up by dribble count:
+
+```python
+def get_dribbleshots2(years, ps=False):
+    dribbles = ['0%20Dribbles', '1%20Dribble', '2%20Dribbles', 
+                '3-6%20Dribbles', '7%2B%20Dribbles']
+    dataframe = []
+    
+    for year in years:
+        for dribble in dribbles:
+            # Fetch catch-and-shoot
+            url = build_url(dribble, "Catch%20and%20Shoot")
+            cs_df = fetch_shooting_data(url)
+            
+            # Fetch pull-ups
+            url = build_url(dribble, "Pullups")
+            pullup_df = fetch_shooting_data(url)
+            
+            # Append both
+            dataframe.extend([cs_df, pullup_df])
+    
+    # Group by player + dribble count (sum across shot types)
+    combined = pd.concat(dataframe)
+    result = combined.groupby([
+        'PLAYER_ID', 'PLAYER', 'TEAM', 'dribbles', 'year'
+    ]).sum(numeric_only=True).reset_index()
+    
+    return result
+```
+
+## Data Validation
+
+### Common Checks
+
+```python
+# Remove duplicate rows
+df.drop_duplicates(inplace=True)
+
+# Verify expected columns exist
+required_cols = ['nba_id', 'player', 'year', 'team']
+assert all(col in df.columns for col in required_cols)
+
+# Check for negative values in counting stats
+assert (df[['FGM', 'FGA', 'PTS']] >= 0).all().all()
+
+# Verify year range
+assert df['year'].between(2014, 2026).all()
+
+# Check ID uniqueness per season
+assert not df.duplicated(subset=['nba_id', 'year']).any()
+```
+
+### Logging Unmatched Players
+
+```python
+# Log players without NBA IDs
+notfound = index_frame[index_frame.nba_id.isna()]
+print(f"Unmatched players: {len(notfound)}")
+print(notfound[['player', 'team', 'year']])
+
+# Log fuzzy match quality
+low_confidence = [
+    name for name, info in mappings.items()
+    if info['score'] and info['score'] < 95
+]
+print(f"Low confidence matches: {len(low_confidence)}")
+```
+
+## Column Selection
+
+Final output column standardization:
+
+```python
+# Passing data output columns
+columns = [
+    'nba_id', 'Name', 'Points', 'on-ball-time%', 'on-ball-time',
+    'UAPTS', 'TSA', 'OffPoss', 'Potential Assists', 'Travels',
+    'TsPct', 'Turnovers', 'Passes', 'PASSES_RECEIVED',
+    'PotAss/Passes', 'UAFGM', 'High Value Assist %', 'Assist PPP',
+    'TOUCHES', 'AVG_SEC_PER_TOUCH', 'AVG_DRIB_PER_TOUCH',
+    'PTS_PER_TOUCH', 'SECONDARY_AST', 'POTENTIAL_AST',
+    'AST_PTS_CREATED', 'Assists', 'GP', 'Minutes', 'year'
+]
+output = merged[columns]
+output.to_csv('passing.csv', index=False)
+```
+
+## Performance Considerations
+
+<Warning>
+Large datasets (2014-2025 spanning 12 seasons) can be memory-intensive.
+</Warning>
+
+### Optimization Strategies
+
+1. **Incremental Updates**: Only fetch current season, append to historical data
+2. **Selective Loading**: Use `pd.read_csv(usecols=[...])` to load only needed columns
+3. **Type Optimization**: Convert float64 → float32 for percentage columns
+4. **Chunk Processing**: For extremely large files, use `pd.read_csv(chunksize=10000)`
+
+```python
+# Example: Memory-efficient update
+def efficient_update(master_file, year):
+    # Load only non-current-year data
+    old = pd.read_csv(
+        master_file,
+        usecols=['nba_id', 'player', 'year', 'PTS', 'TS%']
+    )
+    old = old[old.year != year]  # Filter before full load
+    
+    # Fetch new data
+    new = fetch_current_season(year)
+    
+    # Append and save
+    pd.concat([old, new]).to_csv(master_file, index=False)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Collection" icon="database" href="/scripts/data-collection">
+    Learn about the automated collection architecture
+  </Card>
+  <Card title="Scraping Pipeline" icon="globe" href="/scripts/scraping-pipeline">
+    Explore API endpoints and web scraping patterns
+  </Card>
+</CardGroup>

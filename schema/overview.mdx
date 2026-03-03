@@ -1,0 +1,156 @@
+---
+title: 'Data Schema Overview'
+description: 'Understanding the NBA statistics data model, relationships, and file structure'
+---
+
+## Data Model Architecture
+
+The NBA Statistics Data Platform organizes data across multiple dimensions:
+
+- **Player-level statistics**: Individual performance metrics aggregated by season
+- **Team-level statistics**: Team performance and shooting data
+- **Advanced metrics**: Calculated fields including play types, tracking data, and RAPM
+- **Game-level data**: Play-by-play and game logs
+
+## Core Identifiers
+
+All datasets are connected through consistent identifier fields:
+
+<ResponseField name="nba_id" type="integer" required>
+  Unique player identifier used across all player datasets. Also referred to as `PLAYER_ID` in some files.
+</ResponseField>
+
+<ResponseField name="team_id" type="integer" required>
+  Unique team identifier. Also appears as `TEAM_ID` or `TeamId` depending on the dataset.
+</ResponseField>
+
+<ResponseField name="year" type="integer" required>
+  Season year (e.g., 2014, 2015). Regular season and playoff data are stored separately.
+</ResponseField>
+
+<ResponseField name="Player" type="string">
+  Player name as displayed. Used for human-readable references.
+</ResponseField>
+
+<ResponseField name="Team" type="string">
+  Team abbreviation (e.g., "LAL", "BOS", "GSW"). May appear as `Tm`, `TEAM`, or `TEAM_ABBREVIATION`.
+</ResponseField>
+
+## File Naming Conventions
+
+### Regular Season vs Playoffs
+
+Datasets follow a consistent naming pattern to distinguish between regular season and playoff data:
+
+- **Regular season**: `filename.csv` (e.g., `scoring.csv`, `hustle.csv`)
+- **Playoffs**: `filename_ps.csv` (e.g., `scoring_ps.csv`, `hustle_ps.csv`)
+
+The `_ps` suffix indicates playoff-specific data. Playoff files contain the same schema as their regular season counterparts but only include postseason games.
+
+### Common Playoff Files
+
+- `defense_master_ps.csv`
+- `hustle_ps.csv`
+- `passing_ps.csv`
+- `totals_ps.csv`
+- `tracking_ps.csv`
+- `team_shooting_ps.csv`
+- `shotzone_ps.csv`
+
+## Data Relationships
+
+### Player → Team → Season
+
+Data follows a hierarchical structure:
+
+```
+Player (nba_id)
+  └── Season (year)
+       └── Team (team_id, Team)
+            └── Statistics (various metrics)
+```
+
+A single player may have multiple records per season if they were traded or played for multiple teams.
+
+### Joining Datasets
+
+To combine data from multiple sources, use the following join keys:
+
+**Player statistics across datasets**:
+```sql
+SELECT s.*, t.DRIVES, t.FGM as tracking_fgm
+FROM scoring s
+JOIN tracking t ON s.nba_id = t.PLAYER_ID AND s.year = t.year
+```
+
+**Team-level aggregations**:
+```sql
+SELECT ts.TEAM, ts.FG%, tz.Points
+FROM team_shooting ts
+JOIN team_shotzone tz ON ts.TEAM = tz.Name AND ts.year = tz.year
+```
+
+## Common Field Patterns
+
+### Game Counts
+<ResponseField name="G" type="integer">
+  Games played or games started (context-dependent)
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played (total appearances)
+</ResponseField>
+
+### Playing Time
+<ResponseField name="MP" type="float">
+  Minutes played (total for season)
+</ResponseField>
+
+<ResponseField name="MIN" type="float">
+  Minutes (may be per game or total depending on dataset)
+</ResponseField>
+
+### Shooting Percentages
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-100 scale)
+</ResponseField>
+
+<ResponseField name="eFG%" type="float">
+  Effective field goal percentage, adjusted for 3-point value
+</ResponseField>
+
+<ResponseField name="TS%" type="float">
+  True shooting percentage, accounts for free throws
+</ResponseField>
+
+## Data Quality Notes
+
+### Missing Values
+
+- Players with insufficient minutes may have `null` or `0` values for advanced metrics
+- Percentage fields may be `null` when the denominator is 0 (e.g., no attempts)
+- Some tracking data is only available from 2013-14 season onward
+
+### Historical Coverage
+
+Data availability varies by metric and year:
+
+- **Basic stats**: Available from 1974+ (scoring, totals)
+- **Shooting zones**: Available from 2014+ 
+- **Tracking data**: Available from 2014+
+- **Hustle stats**: Available from 2016+
+- **RAPM**: Calculated for seasons with play-by-play data
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Player Stats" icon="user" href="/schema/player-stats">
+    Explore player-level data schemas
+  </Card>
+  <Card title="Team Stats" icon="users" href="/schema/team-stats">
+    Review team-level datasets
+  </Card>
+  <Card title="Advanced Metrics" icon="chart-line" href="/schema/advanced-metrics">
+    Dive into calculated metrics and play types
+  </Card>
+</CardGroup>

@@ -1,0 +1,274 @@
+---
+title: 'Player Shooting'
+description: 'Shot quality data by defender distance classification'
+---
+
+## Overview
+
+The `player_shooting.py` script collects shooting statistics categorized by closest defender distance. Data is collected in four defender distance buckets: Very Tight, Tight, Open, and Wide Open.
+
+## Data Sources
+
+- **NBA.com Stats API**: `leaguedashplayerptshot` endpoint
+- **Defender Distance Classifications**:
+  - **Very Tight**: 0-2 feet
+  - **Tight**: 2-4 feet
+  - **Open**: 4-6 feet
+  - **Wide Open**: 6+ feet
+
+## Core Function
+
+### get_playershots()
+
+Collects shooting data for all defender distance categories.
+
+<ParamField path="years" type="list[int]" required>
+  List of years to scrape (e.g., `[2024, 2025]`)
+</ParamField>
+
+<ParamField path="ps" type="boolean" default="False">
+  Playoffs mode - if True, fetches playoff data
+</ParamField>
+
+**Returns**: Saves four CSV files per year (one for each distance category)
+
+```python
+# From player_shooting.py:65
+def get_playershots(years, ps=False):
+    shots = [
+        "0-2%20Feet%20-%20Very%20Tight",
+        "2-4%20Feet%20-%20Tight",
+        "4-6%20Feet%20-%20Open",
+        "6%2B%20Feet%20-%20Wide%20Open"
+    ]
+    terms = ['very_tight.csv', 'tight.csv', 'open.csv', 'wide_open.csv']
+    stype = "Playoffs" if ps else "Regular%20Season"
+    
+    for year in years:
+        for shot in shots:
+            season = str(year) + '-' + str(year + 1 - 2000)
+            url = f"https://stats.nba.com/stats/leaguedashplayerptshot?CloseDefDistRange={shot}&Season={season}&SeasonType={stype}"
+```
+
+### master_shooting()
+
+Combines individual year files into master dataset.
+
+<ParamField path="playoffs" type="boolean" default="False">
+  If True, processes playoff data
+</ParamField>
+
+**Returns**: `pd.DataFrame` with all years and shot types combined
+
+```python
+# From player_shooting.py:126
+def master_shooting(playoffs=False):
+    data = []
+    for i in range(2014, 2026):
+        p = '/playoffs' if playoffs else ''
+        path = str(i) + p + '/player_shooting/'
+        files = ['wide_open', 'open', 'tight', 'very_tight']
+        
+        for file in files:
+            df = pd.read_csv(path + file + '.csv')
+            df['year'] = i
+            df['shot_type'] = file
+            data.append(df)
+    
+    master = pd.concat(data)
+    return master
+```
+
+## Statistics Collected
+
+<ResponseField name="PLAYER_ID" type="integer">
+  NBA player ID
+</ResponseField>
+
+<ResponseField name="PLAYER" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="TEAM" type="string">
+  Team abbreviation
+</ResponseField>
+
+<ResponseField name="AGE" type="integer">
+  Player age
+</ResponseField>
+
+<ResponseField name="GP" type="integer">
+  Games played
+</ResponseField>
+
+<ResponseField name="G" type="integer">
+  Games started
+</ResponseField>
+
+<ResponseField name="FREQ%" type="float">
+  Frequency percentage - how often player takes shots in this defender distance range
+</ResponseField>
+
+<ResponseField name="FGM" type="integer">
+  Field goals made
+</ResponseField>
+
+<ResponseField name="FGA" type="integer">
+  Field goal attempts
+</ResponseField>
+
+<ResponseField name="FG%" type="float">
+  Field goal percentage (0-100 scale)
+</ResponseField>
+
+<ResponseField name="EFG%" type="float">
+  Effective field goal percentage (accounts for 3-pointers)
+</ResponseField>
+
+<ResponseField name="2FG FREQ%" type="float">
+  Two-point shot frequency within this defender distance
+</ResponseField>
+
+<ResponseField name="2FGM" type="integer">
+  Two-point field goals made
+</ResponseField>
+
+<ResponseField name="2FGA" type="integer">
+  Two-point field goal attempts
+</ResponseField>
+
+<ResponseField name="2FG%" type="float">
+  Two-point field goal percentage
+</ResponseField>
+
+<ResponseField name="3FG FREQ%" type="float">
+  Three-point shot frequency within this defender distance
+</ResponseField>
+
+<ResponseField name="3PM" type="integer">
+  Three-pointers made
+</ResponseField>
+
+<ResponseField name="3PA" type="integer">
+  Three-point attempts
+</ResponseField>
+
+<ResponseField name="3P%" type="float">
+  Three-point percentage
+</ResponseField>
+
+## Output Files
+
+### Individual Year Files
+
+<ResponseField name="very_tight.csv" type="CSV">
+  Shots with defender 0-2 feet away
+  
+  **Path**: `{year}/player_shooting/very_tight.csv` or `{year}/playoffs/player_shooting/very_tight.csv`
+</ResponseField>
+
+<ResponseField name="tight.csv" type="CSV">
+  Shots with defender 2-4 feet away
+  
+  **Path**: `{year}/player_shooting/tight.csv`
+</ResponseField>
+
+<ResponseField name="open.csv" type="CSV">
+  Shots with defender 4-6 feet away
+  
+  **Path**: `{year}/player_shooting/open.csv`
+</ResponseField>
+
+<ResponseField name="wide_open.csv" type="CSV">
+  Shots with defender 6+ feet away
+  
+  **Path**: `{year}/player_shooting/wide_open.csv`
+</ResponseField>
+
+### Master Files
+
+<ResponseField name="player_shooting.csv" type="CSV">
+  All regular season data combined (2014-2025)
+  
+  **Additional columns**: `year`, `shot_type`
+</ResponseField>
+
+<ResponseField name="player_shooting_p.csv" type="CSV">
+  All playoff data combined (2014-2025)
+  
+  **Additional columns**: `year`, `shot_type`
+</ResponseField>
+
+## Column Mapping
+
+The script renames NBA.com columns to more readable names:
+
+```python
+# From player_shooting.py:97-110
+new_columns = {
+    'FG2A_FREQUENCY': '2FG FREQ%',
+    'FG2_PCT': '2FG%',
+    'FG2A': '2FGA',
+    'FG2M': '2FGM',
+    'FG3A_FREQUENCY': '3FG FREQ%',
+    'FG3_PCT': '3P%',
+    'FG3A': '3PA',
+    'FG3M': '3PM',
+    'EFG_PCT': 'EFG%',
+    'FG_PCT': 'FG%',
+    'FGA_FREQUENCY': 'FREQ%',
+    'PLAYER_NAME': 'PLAYER',
+    'PLAYER_LAST_TEAM_ABBREVIATION': 'TEAM'
+}
+```
+
+Percentages are multiplied by 100 for display:
+
+```python
+# From player_shooting.py:116-118
+for col in df.columns:
+    if '%' in col or 'PERC' in col:
+        df[col] *= 100
+```
+
+## Usage Example
+
+```python
+# Set playoff mode
+ps = True
+
+# Collect data for 2024-25 season
+get_playershots([2024], ps=ps)
+
+# Create master file with all years
+master = master_shooting(playoffs=ps)
+
+# Save to CSV
+if ps:
+    master.to_csv('player_shooting_p.csv', index=False)
+else:
+    master.to_csv('player_shooting.csv', index=False)
+```
+
+**Output directory structure**:
+```
+2025/player_shooting/
+├── very_tight.csv
+├── tight.csv
+├── open.csv
+└── wide_open.csv
+
+2025/playoffs/player_shooting/
+├── very_tight.csv
+├── tight.csv
+├── open.csv
+└── wide_open.csv
+```
+
+## Analysis Use Cases
+
+- **Shot quality analysis**: Compare FG% across defender distances
+- **Player evaluation**: Identify players who create their own shot (high very_tight volume)
+- **Catch-and-shoot specialists**: High FG% on wide_open shots
+- **Contested shooting ability**: Performance on very_tight and tight shots
+- **Shot selection**: Frequency distribution across defender distances
